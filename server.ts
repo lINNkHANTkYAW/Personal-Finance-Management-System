@@ -1,8 +1,13 @@
+import dotenv from "dotenv";
 import express from "express";
 import path from "path";
+
+// Load environment variables from .env.local (the project's config file).
+dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
 import { loadFinanceData, saveFinanceData, updateFinancialKPIs } from "./src/db/store";
+import { getCachedSupabaseStatus, getSupabaseStatus } from "./src/db/supabase";
 import { FinanceData, Transaction, Budget, SavingsGoal, UpcomingBill, Account } from "./src/types";
 
 // Initialize express
@@ -37,6 +42,22 @@ function getGeminiClient(): GoogleGenAI | null {
   return aiClient;
 }
 
+// Stamp the real Supabase connection status onto the data payload so the
+// UI can accurately reflect whether we are on the local sandbox or Supabase.
+async function withSupabaseStatus(data: FinanceData): Promise<FinanceData> {
+  const status = await getCachedSupabaseStatus();
+  data.supabaseConfig = {
+    ...data.supabaseConfig,
+    isConnected: status.connected,
+    url: status.url || data.supabaseConfig?.url || "",
+    anonKey:
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+      data.supabaseConfig?.anonKey ||
+      "",
+  };
+  return data;
+}
+
 // -------------------------------------------------------------
 // API Endpoints
 // -------------------------------------------------------------
@@ -47,24 +68,27 @@ app.get("/api/health", (req, res) => {
 });
 
 // 2. Fetch full finance data state
-app.get("/api/finance", (req, res) => {
-  const data = loadFinanceData();
+app.get("/api/finance", async (req, res) => {
+  const data = await loadFinanceData();
   const updatedData = updateFinancialKPIs(data);
-  saveFinanceData(updatedData);
+  await withSupabaseStatus(updatedData);
+  // Read-only: do NOT persist here. Writing on every GET would modify a
+  // watched file and cause Vite to reload the page in a loop.
   res.json(updatedData);
 });
 
 // 3. Update general finance data or Supabase config
-app.post("/api/finance", (req, res) => {
+app.post("/api/finance", async (req, res) => {
   const updated = req.body as FinanceData;
   const withKPIs = updateFinancialKPIs(updated);
-  saveFinanceData(withKPIs);
+  await withSupabaseStatus(withKPIs);
+  await saveFinanceData(withKPIs);
   res.json(withKPIs);
 });
 
 // 4. Add a transaction
-app.post("/api/finance/transaction", (req, res) => {
-  const data = loadFinanceData();
+app.post("/api/finance/transaction", async (req, res) => {
+  const data = await loadFinanceData();
   const newTx: Transaction = {
     id: `tx-${Date.now()}`,
     date: req.body.date || new Date().toISOString().split("T")[0],
@@ -92,13 +116,13 @@ app.post("/api/finance/transaction", (req, res) => {
   }
 
   const updated = updateFinancialKPIs(data);
-  saveFinanceData(updated);
+  await saveFinanceData(updated);
   res.json(updated);
 });
 
 // 5. Add or edit a budget limit
-app.post("/api/finance/budget", (req, res) => {
-  const data = loadFinanceData();
+app.post("/api/finance/budget", async (req, res) => {
+  const data = await loadFinanceData();
   const { category, limit } = req.body;
 
   const existing = data.budgets.find(
@@ -117,13 +141,13 @@ app.post("/api/finance/budget", (req, res) => {
   }
 
   const updated = updateFinancialKPIs(data);
-  saveFinanceData(updated);
+  await saveFinanceData(updated);
   res.json(updated);
 });
 
 // 6. Add or edit a savings goal
-app.post("/api/finance/goal", (req, res) => {
-  const data = loadFinanceData();
+app.post("/api/finance/goal", async (req, res) => {
+  const data = await loadFinanceData();
   const { name, target, saved, targetDate } = req.body;
 
   const existing = data.savingsGoals.find(
@@ -144,13 +168,13 @@ app.post("/api/finance/goal", (req, res) => {
   }
 
   const updated = updateFinancialKPIs(data);
-  saveFinanceData(updated);
+  await saveFinanceData(updated);
   res.json(updated);
 });
 
 // 7. Add or update an upcoming bill
-app.post("/api/finance/bill", (req, res) => {
-  const data = loadFinanceData();
+app.post("/api/finance/bill", async (req, res) => {
+  const data = await loadFinanceData();
   const { name, amount, dueDate, category, urgency } = req.body;
 
   data.bills.push({
@@ -164,14 +188,52 @@ app.post("/api/finance/bill", (req, res) => {
   });
 
   const updated = updateFinancialKPIs(data);
-  saveFinanceData(updated);
+  await saveFinanceData(updated);
   res.json(updated);
+});
+
+// 7b. Supabase connect / status endpoint.
+// The credentials come from the server environment (.env.local), so this
+// simply verifies they can actually reach the configured Supabase project
+// and reports the live status. On first successful connect it seeds the
+// remote table with the current local data if the table is empty.
+app.post("/api/supabase/connect", async (req, res) => {
+  const status = await getSupabaseStatus();
+
+  if (!status.configured) {
+    return res.status(400).json({
+      connected: false,
+      configured: false,
+      message:
+        "Supabase credentials are not configured. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY to .env.local and restart the server.",
+    });
+  }
+
+  if (status.connected) {
+    // loadFinanceData seeds the remote tables on first connect if empty.
+    const data = await loadFinanceData();
+    await withSupabaseStatus(data);
+    await saveFinanceData(data);
+  } else {
+    // Not reachable: just refresh local state and report status.
+    const data = await loadFinanceData();
+    await withSupabaseStatus(data);
+  }
+
+  return res.json({
+    connected: status.connected,
+    configured: status.configured,
+    url: status.url,
+    message: status.connected
+      ? "Connected to Supabase."
+      : "Credentials are set but the project/table could not be reached. Check the SQL schema and network access.",
+  });
 });
 
 // 8. AI Insights generator (calls Gemini API with system guidelines, or uses a high-fidelity rules fallback if API is not active)
 app.post("/api/ai-insights", async (req, res) => {
   const { language } = req.body;
-  const data = loadFinanceData();
+  const data = await loadFinanceData();
   const isJa = language === "ja";
 
   const ai = getGeminiClient();

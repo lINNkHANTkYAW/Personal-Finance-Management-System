@@ -1,11 +1,61 @@
 import fs from "fs";
 import path from "path";
 import { getInitialData } from "./initialData";
-import { FinanceData, Transaction, Budget, SavingsGoal, UpcomingBill, Account } from "../types";
+import { FinanceData, Transaction, Budget, SavingsGoal, UpcomingBill, Account, Investment } from "../types";
+import {
+  getSupabaseClient,
+  isSupabaseConfigured,
+  loadAll,
+  saveAll,
+  type LoadedRows,
+} from "./supabase";
 
-const DATA_FILE = path.join(process.cwd(), "src", "db", "data.json");
+const DATA_FILE = path.join(process.cwd(), "data", "finance.json");
 
-export function loadFinanceData(): FinanceData {
+export function isSupabaseActive(): boolean {
+  return isSupabaseConfigured();
+}
+
+function assemble(rows: LoadedRows): FinanceData {
+  return {
+    accounts: rows.accounts,
+    transactions: rows.transactions,
+    budgets: rows.budgets,
+    savingsGoals: rows.savingsGoals,
+    investments: rows.investments,
+    bills: rows.bills,
+    healthScore:
+      rows.healthScore ?? { score: 0, rating: "Fair", label: "" },
+    supabaseConfig:
+      rows.supabaseConfig ?? { url: "", anonKey: "", isConnected: false },
+  };
+}
+
+export async function loadFinanceData(): Promise<FinanceData> {
+  const sb = getSupabaseClient();
+  if (sb) {
+    const rows = await loadAll();
+    if (rows) {
+      const isEmpty =
+        !rows.accounts.length &&
+        !rows.transactions.length &&
+        !rows.budgets.length &&
+        !rows.savingsGoals.length &&
+        !rows.investments.length &&
+        !rows.bills.length;
+
+      if (!isEmpty) {
+        return assemble(rows);
+      }
+
+      // Supabase is connected but uninitialized: seed it with the demo data.
+      const initial = getInitialData();
+      await saveFinanceData(initial);
+      return initial;
+    }
+  }
+
+  // Local fallback (Supabase not configured or unreachable).
   try {
     const dir = path.dirname(DATA_FILE);
     if (!fs.existsSync(dir)) {
@@ -21,11 +71,18 @@ export function loadFinanceData(): FinanceData {
   }
 
   const initial = getInitialData();
-  saveFinanceData(initial);
+  await saveFinanceData(initial);
   return initial;
 }
 
-export function saveFinanceData(data: FinanceData): void {
+export async function saveFinanceData(data: FinanceData): Promise<void> {
+  const sb = getSupabaseClient();
+  if (sb) {
+    const ok = await saveAll(data);
+    if (ok) return;
+    console.warn("Supabase save failed; persisting to local file as fallback.");
+  }
+
   try {
     const dir = path.dirname(DATA_FILE);
     if (!fs.existsSync(dir)) {
@@ -84,7 +141,7 @@ export function updateFinancialKPIs(data: FinanceData): FinanceData {
   let baseScore = 75;
   baseScore += Math.floor(savingsRate / 4); // max +25
   baseScore -= budgetOverruns * 8; // penalty
-  
+
   const savedRatio = data.savingsGoals.reduce((sum, g) => sum + (g.saved / g.target), 0) / (data.savingsGoals.length || 1);
   baseScore += Math.floor(savedRatio * 10); // max +10
 

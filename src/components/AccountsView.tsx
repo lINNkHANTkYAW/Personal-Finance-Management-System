@@ -43,42 +43,31 @@ export default function AccountsView({
     setIsTesting(true);
     setTestResult(null);
 
-    // Simulate connecting to Supabase database (or saving settings)
-    setTimeout(async () => {
-      const isOk = supabaseUrl.startsWith("https://") && supabaseKey.length > 20;
-      
-      const updatedConfig = {
-        url: supabaseUrl,
-        anonKey: supabaseKey,
-        isConnected: isOk
-      };
+    try {
+      // Credentials live on the server (.env.local); this verifies they can
+      // actually reach the configured Supabase project and seeds the table.
+      const response = await fetch("/api/supabase/connect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const result = await response.json();
 
-      const updatedData: FinanceData = {
-        ...data,
-        supabaseConfig: updatedConfig
-      };
-
-      try {
-        const response = await fetch("/api/finance", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(updatedData)
-        });
-
-        if (response.ok) {
-          const freshData = await response.json();
-          onUpdateData(freshData);
-          setTestResult(isOk ? "success" : "error");
-        } else {
-          setTestResult("error");
-        }
-      } catch (err) {
-        console.error(err);
-        setTestResult("error");
-      } finally {
-        setIsTesting(false);
+      // Reload full state so the real connection status propagates everywhere.
+      const financeRes = await fetch("/api/finance");
+      if (financeRes.ok) {
+        const freshData = await financeRes.json();
+        onUpdateData(freshData);
+        setSupabaseUrl(freshData.supabaseConfig?.url || "");
+        setSupabaseKey(freshData.supabaseConfig?.anonKey || "");
       }
-    }, 1500);
+
+      setTestResult(result.connected ? "success" : "error");
+    } catch (err) {
+      console.error(err);
+      setTestResult("error");
+    } finally {
+      setIsTesting(false);
+    }
   };
 
   const handleAddAccount = async () => {
