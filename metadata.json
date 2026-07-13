@@ -1,0 +1,6 @@
+{
+  "name": "Personal Finance Management System",
+  "description": "A premium SaaS fintech dashboard for managing accounts, transactions, budgets, savings goals, investments, and bills, featuring an AI advisor and interactive analytics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
