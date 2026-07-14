@@ -60,17 +60,17 @@ export async function runMigrations(): Promise<void> {
           alter table ${table}
             add constraint ${table}_user_id_fkey
             foreign key (user_id) references users(id) on delete cascade;
-        exception when duplicate_object then null;
+        exception
+          when duplicate_object then null;
+          when duplicate_table then null;
         end $$;
       `);
     }
 
+    // Unique user_id on finance_meta (idempotent — "already exists" is fine)
     await client.query(`
-      do $$ begin
-        alter table finance_meta
-          add constraint finance_meta_user_id_unique unique (user_id);
-      exception when duplicate_object then null;
-      end $$;
+      create unique index if not exists finance_meta_user_id_unique
+      on finance_meta (user_id)
     `);
 
     await client.query(`create index if not exists idx_accounts_user on accounts (user_id)`);
