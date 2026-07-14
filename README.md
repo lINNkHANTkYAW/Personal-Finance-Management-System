@@ -26,7 +26,7 @@ This app stores all finance data in **PostgreSQL running in Docker**.
    npm run dev
    ```
 
-Open http://localhost:3000
+Open http://localhost:3000 — you'll be asked to **sign up** or **log in**. Each user has their own isolated finance data.
 
 ## Database
 

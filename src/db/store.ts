@@ -47,9 +47,9 @@ function assemble(rows: LoadedRows): FinanceData {
   };
 }
 
-export async function loadFinanceData(): Promise<FinanceData> {
+export async function loadFinanceData(userId: string): Promise<FinanceData> {
   if (isDatabaseConfigured()) {
-    const rows = await loadAll();
+    const rows = await loadAll(userId);
     if (rows) {
       return assemble(rows);
     }
@@ -58,13 +58,16 @@ export async function loadFinanceData(): Promise<FinanceData> {
   return createEmptyFinanceData();
 }
 
-export async function saveFinanceData(data: FinanceData): Promise<void> {
+export async function saveFinanceData(
+  userId: string,
+  data: FinanceData
+): Promise<void> {
   if (!isDatabaseConfigured()) {
     console.error("PostgreSQL is not configured; cannot persist finance data.");
     return;
   }
 
-  const ok = await saveAll(data);
+  const ok = await saveAll(userId, data);
   if (!ok) {
     console.error("Failed to persist finance data to PostgreSQL.");
   }
@@ -72,7 +75,8 @@ export async function saveFinanceData(data: FinanceData): Promise<void> {
 
 export function updateFinancialKPIs(data: FinanceData): FinanceData {
   const txs = data.transactions;
-  const currentMonthYear = "2026-07";
+  const now = new Date();
+  const currentMonthYear = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
   let monthlyIncome = 0;
   let monthlyExpenses = 0;
@@ -112,7 +116,16 @@ export function updateFinancialKPIs(data: FinanceData): FinanceData {
     if (b.spent > b.limit) budgetOverruns++;
   });
 
-  let baseScore = 75;
+  let baseScore = data.accounts.length || data.transactions.length ? 75 : 0;
+  if (baseScore === 0) {
+    data.healthScore = {
+      score: 0,
+      rating: "Fair",
+      label: "Start by adding your first account or transaction.",
+    };
+    return data;
+  }
+
   baseScore += Math.floor(savingsRate / 4);
   baseScore -= budgetOverruns * 8;
 

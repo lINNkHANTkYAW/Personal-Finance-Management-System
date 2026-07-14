@@ -139,20 +139,23 @@ export interface LoadedRows {
   dbConfig: FinanceData["dbConfig"] | null;
 }
 
-export async function loadAll(): Promise<LoadedRows | null> {
+export async function loadAll(userId: string): Promise<LoadedRows | null> {
   const db = buildPool();
   if (!db) return null;
 
   try {
     const [accRes, txRes, budRes, goalRes, invRes, billRes, metaRes] =
       await Promise.all([
-        db.query("select * from accounts"),
-        db.query("select * from transactions"),
-        db.query("select * from budgets"),
-        db.query("select * from savings_goals"),
-        db.query("select * from investments"),
-        db.query("select * from bills"),
-        db.query("select * from finance_meta where id = $1", ["main"]),
+        db.query("select * from accounts where user_id = $1", [userId]),
+        db.query("select * from transactions where user_id = $1", [userId]),
+        db.query("select * from budgets where user_id = $1", [userId]),
+        db.query("select * from savings_goals where user_id = $1", [userId]),
+        db.query("select * from investments where user_id = $1", [userId]),
+        db.query("select * from bills where user_id = $1", [userId]),
+        db.query(
+          "select * from finance_meta where user_id = $1 or id = $1 limit 1",
+          [userId]
+        ),
       ]);
 
     const meta = metaRes.rows[0] as Row | undefined;
@@ -176,45 +179,57 @@ export async function loadAll(): Promise<LoadedRows | null> {
 async function syncCollection(
   client: pg.PoolClient,
   table: string,
+  userId: string,
   columns: string[],
   rows: unknown[][],
   idIndex = 0
 ): Promise<void> {
+  const withUser = ["id", "user_id", ...columns.filter((c) => c !== "id")];
+
   if (rows.length > 0) {
     const placeholders = rows
       .map((_, rowIndex) => {
-        const offset = rowIndex * columns.length;
-        const values = columns
+        const offset = rowIndex * withUser.length;
+        const values = withUser
           .map((_, colIndex) => `$${offset + colIndex + 1}`)
           .join(", ");
         return `(${values})`;
       })
       .join(", ");
 
-    const updates = columns
-      .filter((col) => col !== "id")
+    const updates = withUser
+      .filter((col) => col !== "id" && col !== "user_id")
       .map((col) => `${col} = excluded.${col}`)
       .join(", ");
 
-    const flat = rows.flat();
+    const flat = rows.flatMap((row) => {
+      const id = row[idIndex];
+      const rest = row.filter((_, i) => i !== idIndex);
+      return [id, userId, ...rest];
+    });
+
     await client.query(
-      `insert into ${table} (${columns.join(", ")})
+      `insert into ${table} (${withUser.join(", ")})
        values ${placeholders}
-       on conflict (id) do update set ${updates}`,
+       on conflict (id) do update set ${updates}
+       where ${table}.user_id = excluded.user_id`,
       flat
     );
 
     const ids = rows.map((row) => row[idIndex]);
     await client.query(
-      `delete from ${table} where id <> all($1::text[])`,
-      [ids]
+      `delete from ${table} where user_id = $1 and id <> all($2::text[])`,
+      [userId, ids]
     );
   } else {
-    await client.query(`delete from ${table}`);
+    await client.query(`delete from ${table} where user_id = $1`, [userId]);
   }
 }
 
-export async function saveAll(data: FinanceData): Promise<boolean> {
+export async function saveAll(
+  userId: string,
+  data: FinanceData
+): Promise<boolean> {
   const db = buildPool();
   if (!db) return false;
 
@@ -225,6 +240,7 @@ export async function saveAll(data: FinanceData): Promise<boolean> {
     await syncCollection(
       client,
       "accounts",
+      userId,
       ["id", "name", "type", "balance", "currency", "last_updated"],
       data.accounts.map((a) => [
         a.id,
@@ -239,6 +255,7 @@ export async function saveAll(data: FinanceData): Promise<boolean> {
     await syncCollection(
       client,
       "transactions",
+      userId,
       [
         "id",
         "date",
@@ -264,6 +281,7 @@ export async function saveAll(data: FinanceData): Promise<boolean> {
     await syncCollection(
       client,
       "budgets",
+      userId,
       ["id", "category", "monthly_limit", "spent", "period"],
       data.budgets.map((b) => [
         b.id,
@@ -277,6 +295,7 @@ export async function saveAll(data: FinanceData): Promise<boolean> {
     await syncCollection(
       client,
       "savings_goals",
+      userId,
       ["id", "name", "target", "saved", "target_date"],
       data.savingsGoals.map((g) => [
         g.id,
@@ -290,6 +309,7 @@ export async function saveAll(data: FinanceData): Promise<boolean> {
     await syncCollection(
       client,
       "investments",
+      userId,
       [
         "id",
         "name",
@@ -317,6 +337,7 @@ export async function saveAll(data: FinanceData): Promise<boolean> {
     await syncCollection(
       client,
       "bills",
+      userId,
       ["id", "name", "amount", "due_date", "category", "status", "urgency"],
       data.bills.map((b) => [
         b.id,
@@ -330,12 +351,13 @@ export async function saveAll(data: FinanceData): Promise<boolean> {
     );
 
     await client.query(
-      `insert into finance_meta (id, health_score, db_config)
-       values ($1, $2::jsonb, $3::jsonb)
+      `insert into finance_meta (id, user_id, health_score, db_config)
+       values ($1, $1, $2::jsonb, $3::jsonb)
        on conflict (id) do update
        set health_score = excluded.health_score,
-           db_config = excluded.db_config`,
-      ["main", JSON.stringify(data.healthScore), JSON.stringify(data.dbConfig)]
+           db_config = excluded.db_config,
+           user_id = excluded.user_id`,
+      [userId, JSON.stringify(data.healthScore), JSON.stringify(data.dbConfig)]
     );
 
     await client.query("commit");
@@ -354,7 +376,7 @@ export async function testDatabaseConnection(): Promise<boolean> {
   if (!db) return false;
 
   try {
-    await db.query("select 1 from accounts limit 1");
+    await db.query("select 1");
     return true;
   } catch (err) {
     console.error("PostgreSQL connection test failed:", err);

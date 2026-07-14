@@ -1,9 +1,11 @@
 import dotenv from "dotenv";
-import express from "express";
+import express, { type Request, type Response, type NextFunction } from "express";
 import path from "path";
+import session from "express-session";
+import connectPgSimple from "connect-pg-simple";
 
-// Load environment variables from .env.local (the project's config file).
 dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
+
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
 import { loadFinanceData, saveFinanceData, updateFinancialKPIs } from "./src/db/store";
@@ -12,17 +14,54 @@ import {
   getDatabaseStatus,
   clearDatabaseStatusCache,
   getDatabaseEnvConfig,
+  getPool,
 } from "./src/db/postgres";
-import { FinanceData, Transaction, Budget, SavingsGoal, UpcomingBill, Account } from "./src/types";
+import { runMigrations } from "./src/db/migrate";
+import {
+  createUser,
+  findUserByEmail,
+  findUserById,
+  verifyPassword,
+} from "./src/db/auth";
+import { FinanceData, Transaction } from "./src/types";
 
-// Initialize express
 const app = express();
 const PORT = 3000;
+const PgSession = connectPgSimple(session);
 
-// Enable JSON body parsing with a generous limit for base64 image uploads
 app.use(express.json({ limit: "50mb" }));
 
-// Initialize Gemini SDK client lazily & safely
+app.use(
+  session({
+    store: new PgSession({
+      pool: getPool() ?? undefined,
+      tableName: "session",
+      createTableIfMissing: true,
+    }),
+    name: "pfms.sid",
+    secret: process.env.SESSION_SECRET || "pfms-dev-session-secret-change-me",
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 1000 * 60 * 60 * 24 * 7,
+    },
+  })
+);
+
+function requireAuth(req: Request, res: Response, next: NextFunction) {
+  if (!req.session.userId) {
+    return res.status(401).json({ error: "Authentication required" });
+  }
+  return next();
+}
+
+function getUserId(req: Request): string {
+  return req.session.userId as string;
+}
+
 let aiClient: GoogleGenAI | null = null;
 function getGeminiClient(): GoogleGenAI | null {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -47,7 +86,6 @@ function getGeminiClient(): GoogleGenAI | null {
   return aiClient;
 }
 
-// Stamp the live Docker PostgreSQL connection status onto the data payload.
 async function withDatabaseStatus(data: FinanceData): Promise<FinanceData> {
   const status = await getCachedDatabaseStatus();
   const env = getDatabaseEnvConfig();
@@ -60,46 +98,101 @@ async function withDatabaseStatus(data: FinanceData): Promise<FinanceData> {
   return data;
 }
 
-// -------------------------------------------------------------
-// API Endpoints
-// -------------------------------------------------------------
-
-// 1. Health check
-app.get("/api/health", (req, res) => {
+app.get("/api/health", (_req, res) => {
   res.json({ status: "ok", time: new Date().toISOString() });
 });
 
-// 2. Fetch full finance data state
-app.get("/api/finance", async (req, res) => {
-  const data = await loadFinanceData();
+// -------------------- Auth --------------------
+
+app.get("/api/auth/me", async (req, res) => {
+  if (!req.session.userId) {
+    return res.status(401).json({ user: null });
+  }
+  const user = await findUserById(req.session.userId);
+  if (!user) {
+    req.session.destroy(() => undefined);
+    return res.status(401).json({ user: null });
+  }
+  return res.json({ user });
+});
+
+app.post("/api/auth/signup", async (req, res) => {
+  try {
+    const { name, email, password } = req.body ?? {};
+    const user = await createUser({ name, email, password });
+    req.session.userId = user.id;
+    return res.status(201).json({ user });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Signup failed";
+    return res.status(400).json({ error: message });
+  }
+});
+
+app.post("/api/auth/login", async (req, res) => {
+  try {
+    const { email, password } = req.body ?? {};
+    if (!email || !password) {
+      return res.status(400).json({ error: "Email and password are required" });
+    }
+
+    const found = await findUserByEmail(email);
+    if (!found || !(await verifyPassword(password, found.passwordHash))) {
+      return res.status(401).json({ error: "Invalid email or password" });
+    }
+
+    req.session.userId = found.id;
+    return res.json({
+      user: {
+        id: found.id,
+        email: found.email,
+        name: found.name,
+        createdAt: found.createdAt,
+      },
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Login failed" });
+  }
+});
+
+app.post("/api/auth/logout", (req, res) => {
+  req.session.destroy((err) => {
+    if (err) {
+      return res.status(500).json({ error: "Logout failed" });
+    }
+    res.clearCookie("pfms.sid");
+    return res.json({ ok: true });
+  });
+});
+
+// -------------------- Finance (auth required) --------------------
+
+app.get("/api/finance", requireAuth, async (req, res) => {
+  const data = await loadFinanceData(getUserId(req));
   const updatedData = updateFinancialKPIs(data);
   await withDatabaseStatus(updatedData);
-  // Read-only: do NOT persist here. Writing on every GET would modify a
-  // watched file and cause Vite to reload the page in a loop.
   res.json(updatedData);
 });
 
-// 3. Update general finance data
-app.post("/api/finance", async (req, res) => {
+app.post("/api/finance", requireAuth, async (req, res) => {
   const updated = req.body as FinanceData;
   const withKPIs = updateFinancialKPIs(updated);
   await withDatabaseStatus(withKPIs);
-  await saveFinanceData(withKPIs);
+  await saveFinanceData(getUserId(req), withKPIs);
   res.json(withKPIs);
 });
 
-// 3b. Reset all finance data to empty (no seed/mock data)
-app.post("/api/finance/reset", async (req, res) => {
+app.post("/api/finance/reset", requireAuth, async (req, res) => {
   const { getInitialData } = await import("./src/db/initialData");
   const empty = updateFinancialKPIs(getInitialData());
   await withDatabaseStatus(empty);
-  await saveFinanceData(empty);
+  await saveFinanceData(getUserId(req), empty);
   res.json(empty);
 });
 
-// 4. Add a transaction
-app.post("/api/finance/transaction", async (req, res) => {
-  const data = await loadFinanceData();
+app.post("/api/finance/transaction", requireAuth, async (req, res) => {
+  const userId = getUserId(req);
+  const data = await loadFinanceData(userId);
   const newTx: Transaction = {
     id: `tx-${Date.now()}`,
     date: req.body.date || new Date().toISOString().split("T")[0],
@@ -113,10 +206,7 @@ app.post("/api/finance/transaction", async (req, res) => {
 
   data.transactions.unshift(newTx);
 
-  // Adjust checking/savings balances
-  const matchingAccount = data.accounts.find(
-    (acc) => acc.type === (newTx.type === "income" ? "checking" : "checking")
-  );
+  const matchingAccount = data.accounts.find((acc) => acc.type === "checking");
   if (matchingAccount) {
     if (newTx.type === "income") {
       matchingAccount.balance += newTx.amount;
@@ -127,13 +217,13 @@ app.post("/api/finance/transaction", async (req, res) => {
   }
 
   const updated = updateFinancialKPIs(data);
-  await saveFinanceData(updated);
+  await saveFinanceData(userId, updated);
   res.json(updated);
 });
 
-// 5. Add or edit a budget limit
-app.post("/api/finance/budget", async (req, res) => {
-  const data = await loadFinanceData();
+app.post("/api/finance/budget", requireAuth, async (req, res) => {
+  const userId = getUserId(req);
+  const data = await loadFinanceData(userId);
   const { category, limit } = req.body;
 
   const existing = data.budgets.find(
@@ -152,13 +242,13 @@ app.post("/api/finance/budget", async (req, res) => {
   }
 
   const updated = updateFinancialKPIs(data);
-  await saveFinanceData(updated);
+  await saveFinanceData(userId, updated);
   res.json(updated);
 });
 
-// 6. Add or edit a savings goal
-app.post("/api/finance/goal", async (req, res) => {
-  const data = await loadFinanceData();
+app.post("/api/finance/goal", requireAuth, async (req, res) => {
+  const userId = getUserId(req);
+  const data = await loadFinanceData(userId);
   const { name, target, saved, targetDate } = req.body;
 
   const existing = data.savingsGoals.find(
@@ -166,7 +256,8 @@ app.post("/api/finance/goal", async (req, res) => {
   );
   if (existing) {
     existing.target = parseFloat(target) || existing.target;
-    existing.saved = parseFloat(saved) !== undefined ? parseFloat(saved) : existing.saved;
+    existing.saved =
+      parseFloat(saved) !== undefined ? parseFloat(saved) : existing.saved;
     existing.targetDate = targetDate || existing.targetDate;
   } else {
     data.savingsGoals.push({
@@ -179,13 +270,13 @@ app.post("/api/finance/goal", async (req, res) => {
   }
 
   const updated = updateFinancialKPIs(data);
-  await saveFinanceData(updated);
+  await saveFinanceData(userId, updated);
   res.json(updated);
 });
 
-// 7. Add or update an upcoming bill
-app.post("/api/finance/bill", async (req, res) => {
-  const data = await loadFinanceData();
+app.post("/api/finance/bill", requireAuth, async (req, res) => {
+  const userId = getUserId(req);
+  const data = await loadFinanceData(userId);
   const { name, amount, dueDate, category, urgency } = req.body;
 
   data.bills.push({
@@ -199,12 +290,11 @@ app.post("/api/finance/bill", async (req, res) => {
   });
 
   const updated = updateFinancialKPIs(data);
-  await saveFinanceData(updated);
+  await saveFinanceData(userId, updated);
   res.json(updated);
 });
 
-// 7b. Docker PostgreSQL connect / status endpoint.
-app.post("/api/db/connect", async (req, res) => {
+app.post("/api/db/connect", requireAuth, async (req, res) => {
   clearDatabaseStatusCache();
   const status = await getDatabaseStatus();
 
@@ -217,11 +307,11 @@ app.post("/api/db/connect", async (req, res) => {
     });
   }
 
-  const data = await loadFinanceData();
+  const data = await loadFinanceData(getUserId(req));
   await withDatabaseStatus(data);
 
   if (status.connected) {
-    await saveFinanceData(data);
+    await saveFinanceData(getUserId(req), data);
   }
 
   return res.json({
@@ -236,10 +326,9 @@ app.post("/api/db/connect", async (req, res) => {
   });
 });
 
-// 8. AI Insights generator (calls Gemini API with system guidelines, or uses a high-fidelity rules fallback if API is not active)
-app.post("/api/ai-insights", async (req, res) => {
+app.post("/api/ai-insights", requireAuth, async (req, res) => {
   const { language } = req.body;
-  const data = await loadFinanceData();
+  const data = await loadFinanceData(getUserId(req));
   const isJa = language === "ja";
 
   const ai = getGeminiClient();
@@ -249,9 +338,9 @@ app.post("/api/ai-insights", async (req, res) => {
 Each recommendation must have a text message (in ${isJa ? "Japanese" : "English"}) and a type (one of: 'warning', 'savings', 'milestone', 'info').
 
 User Financial Data:
-- Current balances: Checking: ${data.accounts.find(a=>a.type==='checking')?.balance || 0}, Savings: ${data.accounts.find(a=>a.type==='savings')?.balance || 0}
-- Monthly Income: ${data.transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0)}
-- Monthly Expenses: ${data.transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0)}
+- Current balances: Checking: ${data.accounts.find((a) => a.type === "checking")?.balance || 0}, Savings: ${data.accounts.find((a) => a.type === "savings")?.balance || 0}
+- Monthly Income: ${data.transactions.filter((t) => t.type === "income").reduce((sum, t) => sum + t.amount, 0)}
+- Monthly Expenses: ${data.transactions.filter((t) => t.type === "expense").reduce((sum, t) => sum + t.amount, 0)}
 - Budgets: ${JSON.stringify(data.budgets)}
 - Savings Goals: ${JSON.stringify(data.savingsGoals)}
 - Upcoming Bills: ${JSON.stringify(data.bills)}
@@ -270,9 +359,9 @@ Respond strictly in JSON format as an array of recommendations conforming to thi
               type: Type.OBJECT,
               properties: {
                 text: { type: Type.STRING },
-                type: { 
-                  type: Type.STRING, 
-                  description: "Must be exactly one of: warning, savings, milestone, info" 
+                type: {
+                  type: Type.STRING,
+                  description: "Must be exactly one of: warning, savings, milestone, info",
                 },
               },
               required: ["text", "type"],
@@ -290,50 +379,18 @@ Respond strictly in JSON format as an array of recommendations conforming to thi
     }
   }
 
-  // Fallback Rule-Based AI Insights (in both English and Japanese)
-  // Ensures pixel-perfect experience even with missing API keys
   const fallbackInsights = isJa
     ? [
         {
           id: "rec-1",
-          text: "今月はレストランやカフェでの支出が前月比で18%増加しています。少し外食を控えることを検討してください。",
-          type: "warning",
-        },
-        {
-          id: "rec-2",
-          text: "不要なサブスクリプションを解約、またはプランを見直すことで、月々約240ドル（約35,000円）の節約が可能です。",
-          type: "savings",
-        },
-        {
-          id: "rec-3",
-          text: "貯蓄率が先月と比較して9%向上しました！このペースを維持して資産を拡大しましょう。",
-          type: "milestone",
-        },
-        {
-          id: "rec-4",
-          text: "緊急資金の目標額（10,000ドル）まであと2,550ドルです。現在の貯蓄ペースでは、あと3ヶ月で達成予定です。",
+          text: "口座や取引を追加すると、ここにパーソナライズされたアドバイスが表示されます。",
           type: "info",
         },
       ]
     : [
         {
           id: "rec-1",
-          text: "You spent 18% more on restaurants and dining out this month. Consider cutting back slightly next week.",
-          type: "warning",
-        },
-        {
-          id: "rec-2",
-          text: "You could save approximately $240/month by auditing and reducing inactive subscription expenses.",
-          type: "savings",
-        },
-        {
-          id: "rec-3",
-          text: "Your monthly savings rate has improved by 9% compared to last month. Excellent job!",
-          type: "milestone",
-        },
-        {
-          id: "rec-4",
-          text: "Your Emergency Fund is on track to reach its 100% goal in approximately 3 months at current pacing.",
+          text: "Add accounts and transactions to receive personalized financial insights.",
           type: "info",
         },
       ];
@@ -341,15 +398,12 @@ Respond strictly in JSON format as an array of recommendations conforming to thi
   return res.json(fallbackInsights);
 });
 
-// 9. OCR Receipt scanner endpoint (takes standard base64 image or falls back to an automatic mock response with realistic parsed entries)
-app.post("/api/ocr-receipt", async (req, res) => {
-  const { image, language } = req.body;
-  const isJa = language === "ja";
+app.post("/api/ocr-receipt", requireAuth, async (req, res) => {
+  const { image } = req.body;
 
   const ai = getGeminiClient();
   if (ai && image) {
     try {
-      // Decode image and separate mime type
       const match = image.match(/^data:(image\/\w+);base64,(.+)$/);
       if (match) {
         const mimeType = match[1];
@@ -411,14 +465,14 @@ Respond strictly in JSON format conforming to this schema:
   }
 
   return res.status(422).json({
-    error: "Receipt OCR is not available. Upload a receipt image or configure Gemini API access.",
+    error:
+      "Receipt OCR is not available. Upload a receipt image or configure Gemini API access.",
   });
 });
 
-// -------------------------------------------------------------
-// Vite Dev Server / Static Ingress serving
-// -------------------------------------------------------------
 async function startServer() {
+  await runMigrations();
+
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },
@@ -438,4 +492,7 @@ async function startServer() {
   });
 }
 
-startServer();
+startServer().catch((err) => {
+  console.error("Failed to start server:", err);
+  process.exit(1);
+});

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { View, Language, FinanceData } from "./types";
 import Sidebar from "./components/Sidebar";
 import Header from "./components/Header";
+import AuthPage, { type SessionUser } from "./components/AuthPage";
 import DashboardView from "./components/DashboardView";
 import AccountsView from "./components/AccountsView";
 import TransactionsView from "./components/TransactionsView";
@@ -27,13 +28,20 @@ export default function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [notifications, setNotifications] = useState<any[]>([]);
+  const [user, setUser] = useState<SessionUser | null>(null);
   const [data, setData] = useState<FinanceData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [authChecked, setAuthChecked] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Fetch financial dataset from Express backend database
   const fetchFinanceData = async () => {
+    setIsLoading(true);
     try {
-      const response = await fetch("/api/finance");
+      const response = await fetch("/api/finance", { credentials: "include" });
+      if (response.status === 401) {
+        setUser(null);
+        setData(null);
+        return;
+      }
       if (response.ok) {
         const json = await response.json();
         setData(json);
@@ -46,10 +54,32 @@ export default function App() {
   };
 
   useEffect(() => {
-    fetchFinanceData();
+    const boot = async () => {
+      try {
+        const res = await fetch("/api/auth/me", { credentials: "include" });
+        if (res.ok) {
+          const body = await res.json();
+          if (body.user) {
+            setUser(body.user);
+          }
+        }
+      } catch (err) {
+        console.error("Auth check failed:", err);
+      } finally {
+        setAuthChecked(true);
+      }
+    };
+    boot();
   }, []);
 
-  // Update theme on HTML body for Tailwind dark mode
+  useEffect(() => {
+    if (user) {
+      fetchFinanceData();
+    } else {
+      setData(null);
+    }
+  }, [user]);
+
   useEffect(() => {
     const root = window.document.documentElement;
     if (theme === "dark") {
@@ -73,12 +103,42 @@ export default function App() {
     setData(updated);
   };
 
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setUser(null);
+      setData(null);
+      setCurrentView(View.Dashboard);
+    }
+  };
+
+  if (!authChecked) {
+    return (
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center">
+        <Loader2 className="text-emerald-500 animate-spin mb-4" size={32} />
+        <span className="text-xs font-mono font-bold text-slate-500 tracking-wider">
+          CHECKING SESSION...
+        </span>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <AuthPage onAuthenticated={setUser} />;
+  }
+
   if (isLoading || !data) {
     return (
       <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center">
         <Loader2 className="text-emerald-500 animate-spin mb-4" size={32} />
         <span className="text-xs font-mono font-bold text-slate-500 tracking-wider">
-          ESTABLISHING ELYSIAN COGNITIVE ENVELOPE...
+          LOADING YOUR WORKSPACE...
         </span>
       </div>
     );
@@ -86,8 +146,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200">
-      
-      {/* Sidebar Navigation */}
       <Sidebar
         currentView={currentView}
         setCurrentView={setCurrentView}
@@ -97,10 +155,7 @@ export default function App() {
         isDbConnected={data.dbConfig.isConnected}
       />
 
-      {/* Main Panel Content Wrap */}
       <div className="flex-1 flex flex-col min-w-0">
-        
-        {/* Global header navigation utilities */}
         <Header
           language={language}
           setLanguage={handleLanguageChange}
@@ -112,9 +167,10 @@ export default function App() {
           setNotifications={setNotifications}
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
+          user={user}
+          onLogout={handleLogout}
         />
 
-        {/* Dynamic Route View Mount */}
         <main className="flex-1 p-6 md:p-8 overflow-y-auto max-w-7xl w-full mx-auto">
           {currentView === View.Dashboard && (
             <DashboardView
@@ -176,10 +232,7 @@ export default function App() {
           )}
 
           {currentView === View.Analytics && (
-            <AnalyticsView
-              data={data}
-              language={language}
-            />
+            <AnalyticsView data={data} language={language} />
           )}
 
           {currentView === View.AIInsights && (
@@ -191,10 +244,7 @@ export default function App() {
           )}
 
           {currentView === View.Reports && (
-            <ReportsView
-              data={data}
-              language={language}
-            />
+            <ReportsView data={data} language={language} currency={currency} />
           )}
 
           {currentView === View.Settings && (
@@ -202,11 +252,11 @@ export default function App() {
               data={data}
               language={language}
               onUpdateData={handleUpdateData}
+              onLogout={handleLogout}
             />
           )}
         </main>
       </div>
-
     </div>
   );
 }

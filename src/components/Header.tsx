@@ -11,7 +11,8 @@ import {
   CheckCircle, 
   DollarSign, 
   Percent,
-  X
+  X,
+  LogOut
 } from "lucide-react";
 
 interface HeaderProps {
@@ -25,6 +26,8 @@ interface HeaderProps {
   setNotifications: (notifs: any[]) => void;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
+  user?: { name: string; email: string } | null;
+  onLogout?: () => void;
 }
 
 export default function Header({
@@ -37,7 +40,9 @@ export default function Header({
   notifications,
   setNotifications,
   searchQuery,
-  setSearchQuery
+  setSearchQuery,
+  user,
+  onLogout
 }: HeaderProps) {
   const [showNotifications, setShowNotifications] = useState(false);
   const t = translations[language];
@@ -191,25 +196,29 @@ export default function Header({
           )}
         </div>
 
-        {/* User Profile Info & Avatar */}
+        {/* User Profile Info & Logout */}
         <div className="flex items-center gap-3 pl-2 border-l border-slate-200 dark:border-slate-800">
           <div className="flex flex-col text-right hidden sm:flex">
             <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
-              Alexander Wright
+              {user?.name || "Guest"}
             </span>
             <span className="text-[10px] text-slate-400 dark:text-slate-500">
-              Premium Member
+              {user?.email || "Not signed in"}
             </span>
           </div>
-          <div className="relative">
-            <img
-              src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80"
-              alt="Profile"
-              referrerPolicy="no-referrer"
-              className="w-8 h-8 rounded-xl object-cover ring-2 ring-slate-100 dark:ring-slate-800 shadow-sm"
-            />
-            <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-900" />
+          <div className="w-8 h-8 rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-xs font-extrabold ring-2 ring-slate-100 dark:ring-slate-800 shrink-0">
+            {(user?.name || "U").charAt(0).toUpperCase()}
           </div>
+          {onLogout && (
+            <button
+              onClick={onLogout}
+              type="button"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-red-50 dark:hover:bg-red-500/10 text-slate-600 dark:text-slate-300 hover:text-red-600 dark:hover:text-red-400 text-xs font-bold transition-colors shadow-sm shrink-0"
+            >
+              <LogOut size={14} />
+              <span>Log out</span>
+            </button>
+          )}
         </div>
 
       </div>

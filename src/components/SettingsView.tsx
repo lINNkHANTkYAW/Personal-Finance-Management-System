@@ -9,19 +9,22 @@ import {
   HelpCircle, 
   ShieldCheck, 
   Trash2,
-  CheckCircle2
+  CheckCircle2,
+  LogOut
 } from "lucide-react";
 
 interface SettingsViewProps {
   data: FinanceData;
   language: Language;
   onUpdateData: (data: FinanceData) => void;
+  onLogout?: () => void;
 }
 
 export default function SettingsView({
   data,
   language,
-  onUpdateData
+  onUpdateData,
+  onLogout
 }: SettingsViewProps) {
   const t = translations[language];
   const [name, setName] = useState("Alex Harrison");
@@ -187,6 +190,23 @@ export default function SettingsView({
                 />
               </label>
             </div>
+          </div>
+
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-6 shadow-sm space-y-3">
+            <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
+              <LogOut size={14} /> Account session
+            </h4>
+            <p className="text-xs text-slate-400 dark:text-slate-500 leading-relaxed">
+              Sign out of this device. Your finance data stays saved in the database for when you log back in.
+            </p>
+            <button
+              onClick={onLogout}
+              type="button"
+              className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:hover:bg-white text-white dark:text-slate-900 font-bold text-xs rounded-xl transition-colors flex items-center justify-center gap-2"
+            >
+              <LogOut size={14} />
+              Log out
+            </button>
           </div>
 
           <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-6 shadow-sm space-y-3">
