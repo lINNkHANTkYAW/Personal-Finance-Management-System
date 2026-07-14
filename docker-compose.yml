@@ -1,0 +1,22 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: pfms-postgres
+    restart: unless-stopped
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-pfms}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pfms_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-personal_finance}
+    volumes:
+      - pfms_pgdata:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-pfms} -d ${POSTGRES_DB:-personal_finance}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pfms_pgdata:

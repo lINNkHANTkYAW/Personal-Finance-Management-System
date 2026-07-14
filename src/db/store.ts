@@ -1,18 +1,13 @@
-import fs from "fs";
-import path from "path";
-import { FinanceData, Transaction, Budget, SavingsGoal, UpcomingBill, Account, Investment } from "../types";
+import { FinanceData } from "../types";
 import {
-  getSupabaseClient,
-  isSupabaseConfigured,
+  isDatabaseConfigured,
   loadAll,
   saveAll,
   type LoadedRows,
-} from "./supabase";
+} from "./postgres";
 
-const DATA_FILE = path.join(process.cwd(), "data", "finance.json");
-
-export function isSupabaseActive(): boolean {
-  return isSupabaseConfigured();
+export function isDatabaseActive(): boolean {
+  return isDatabaseConfigured();
 }
 
 function createEmptyFinanceData(): FinanceData {
@@ -23,8 +18,17 @@ function createEmptyFinanceData(): FinanceData {
     savingsGoals: [],
     investments: [],
     bills: [],
-    healthScore: { score: 0, rating: "Fair", label: "Start by adding your first account or transaction." },
-    supabaseConfig: { url: "", anonKey: "", isConnected: false },
+    healthScore: {
+      score: 0,
+      rating: "Fair",
+      label: "Start by adding your first account or transaction.",
+    },
+    dbConfig: {
+      host: process.env.POSTGRES_HOST || "localhost",
+      port: Number(process.env.POSTGRES_PORT || 5433),
+      database: process.env.POSTGRES_DB || "personal_finance",
+      isConnected: false,
+    },
   };
 }
 
@@ -38,59 +42,35 @@ function assemble(rows: LoadedRows): FinanceData {
     bills: rows.bills,
     healthScore:
       rows.healthScore ?? { score: 0, rating: "Fair", label: "" },
-    supabaseConfig:
-      rows.supabaseConfig ?? { url: "", anonKey: "", isConnected: false },
+    dbConfig:
+      rows.dbConfig ?? createEmptyFinanceData().dbConfig,
   };
 }
 
 export async function loadFinanceData(): Promise<FinanceData> {
-  const sb = getSupabaseClient();
-  if (sb) {
+  if (isDatabaseConfigured()) {
     const rows = await loadAll();
     if (rows) {
-      const isEmpty =
-        !rows.accounts.length &&
-        !rows.transactions.length &&
-        !rows.budgets.length &&
-        !rows.savingsGoals.length &&
-        !rows.investments.length &&
-        !rows.bills.length;
-
-      if (!isEmpty) {
-        return assemble(rows);
-      }
-
-      return createEmptyFinanceData();
+      return assemble(rows);
     }
   }
 
-  // Use an empty state when Supabase is unavailable so the app never rehydrates
-  // old mock/demo data from the local file fallback.
-  const empty = createEmptyFinanceData();
-  return empty;
+  return createEmptyFinanceData();
 }
 
 export async function saveFinanceData(data: FinanceData): Promise<void> {
-  const sb = getSupabaseClient();
-  if (sb) {
-    const ok = await saveAll(data);
-    if (ok) return;
-    console.warn("Supabase save failed; persisting to local file as fallback.");
+  if (!isDatabaseConfigured()) {
+    console.error("PostgreSQL is not configured; cannot persist finance data.");
+    return;
   }
 
-  try {
-    const dir = path.dirname(DATA_FILE);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), "utf-8");
-  } catch (error) {
-    console.error("Error saving data to file:", error);
+  const ok = await saveAll(data);
+  if (!ok) {
+    console.error("Failed to persist finance data to PostgreSQL.");
   }
 }
 
 export function updateFinancialKPIs(data: FinanceData): FinanceData {
-  // Recalculate transaction totals for July 2026
   const txs = data.transactions;
   const currentMonthYear = "2026-07";
 
@@ -107,38 +87,39 @@ export function updateFinancialKPIs(data: FinanceData): FinanceData {
     }
   });
 
-  // Calculate savings rate
   let savingsRate = 0;
   if (monthlyIncome > 0) {
-    savingsRate = Math.round(((monthlyIncome - monthlyExpenses) / monthlyIncome) * 100);
+    savingsRate = Math.round(
+      ((monthlyIncome - monthlyExpenses) / monthlyIncome) * 100
+    );
     if (savingsRate < 0) savingsRate = 0;
-  } else {
-    savingsRate = 0;
   }
 
-  // Calculate budgets spent
   data.budgets.forEach((budget) => {
     const categorySpent = txs
-      .filter((tx) => tx.category.toLowerCase() === budget.category.toLowerCase() && tx.type === "expense" && tx.date.startsWith(currentMonthYear))
+      .filter(
+        (tx) =>
+          tx.category.toLowerCase() === budget.category.toLowerCase() &&
+          tx.type === "expense" &&
+          tx.date.startsWith(currentMonthYear)
+      )
       .reduce((sum, tx) => sum + tx.amount, 0);
     budget.spent = Math.round(categorySpent * 100) / 100;
   });
 
-  // Calculate Health Score based on factors:
-  // - Savings Rate (higher is better)
-  // - Budget overruns
-  // - Savings goals progress
   let budgetOverruns = 0;
   data.budgets.forEach((b) => {
     if (b.spent > b.limit) budgetOverruns++;
   });
 
   let baseScore = 75;
-  baseScore += Math.floor(savingsRate / 4); // max +25
-  baseScore -= budgetOverruns * 8; // penalty
+  baseScore += Math.floor(savingsRate / 4);
+  baseScore -= budgetOverruns * 8;
 
-  const savedRatio = data.savingsGoals.reduce((sum, g) => sum + (g.saved / g.target), 0) / (data.savingsGoals.length || 1);
-  baseScore += Math.floor(savedRatio * 10); // max +10
+  const savedRatio =
+    data.savingsGoals.reduce((sum, g) => sum + g.saved / g.target, 0) /
+    (data.savingsGoals.length || 1);
+  baseScore += Math.floor(savedRatio * 10);
 
   const finalScore = Math.min(100, Math.max(30, baseScore));
   let rating = "Fair";
@@ -157,7 +138,7 @@ export function updateFinancialKPIs(data: FinanceData): FinanceData {
   data.healthScore = {
     score: finalScore,
     rating,
-    label
+    label,
   };
 
   return data;

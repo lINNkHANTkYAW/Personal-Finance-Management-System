@@ -25,7 +25,7 @@ interface SidebarProps {
   language: Language;
   isCollapsed: boolean;
   setIsCollapsed: (collapsed: boolean) => void;
-  isSupabaseConnected: boolean;
+  isDbConnected: boolean;
 }
 
 export default function Sidebar({
@@ -34,7 +34,7 @@ export default function Sidebar({
   language,
   isCollapsed,
   setIsCollapsed,
-  isSupabaseConnected
+  isDbConnected
 }: SidebarProps) {
   const t = translations[language];
 
@@ -124,14 +124,14 @@ export default function Sidebar({
       <div className="p-3 border-t border-slate-200 dark:border-slate-800">
         {isCollapsed ? (
           <div className="flex justify-center p-2 bg-slate-900 dark:bg-slate-950 rounded-xl text-white">
-            <span className={`w-2 h-2 rounded-full ${isSupabaseConnected ? "bg-emerald-400" : "bg-orange-400"}`} />
+            <span className={`w-2 h-2 rounded-full ${isDbConnected ? "bg-emerald-400" : "bg-orange-400"}`} />
           </div>
         ) : (
           <div className="bg-slate-900 dark:bg-slate-950 rounded-xl p-3 text-white text-xs">
             <p className="opacity-70 text-[10px] uppercase tracking-wider font-semibold">DB Connection</p>
             <p className="font-mono mt-1 text-emerald-400 flex items-center gap-1.5 font-semibold">
-              <span className={`w-1.5 h-1.5 rounded-full ${isSupabaseConnected ? "bg-emerald-400 animate-pulse" : "bg-orange-400"}`} />
-              {isSupabaseConnected ? "Supabase Active" : "Local Sandbox DB"}
+              <span className={`w-1.5 h-1.5 rounded-full ${isDbConnected ? "bg-emerald-400 animate-pulse" : "bg-orange-400"}`} />
+              {isDbConnected ? "Docker Postgres" : "DB Offline"}
             </p>
           </div>
         )}

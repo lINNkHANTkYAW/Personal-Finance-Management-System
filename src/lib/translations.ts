@@ -69,10 +69,10 @@ export interface TranslationDict {
   unpaid: string;
   markAsPaid: string;
   healthLabel: string;
-  supabaseConfig: string;
-  supabaseUrl: string;
-  supabaseKey: string;
-  connectSupabase: string;
+  dbConfig: string;
+  dbHost: string;
+  dbName: string;
+  connectDatabase: string;
   connected: string;
   disconnected: string;
   currencySelector: string;
@@ -163,11 +163,11 @@ export const translations: Record<"en" | "ja", TranslationDict> = {
     unpaid: "Unpaid",
     markAsPaid: "Mark as Paid",
     healthLabel: "Excellent",
-    supabaseConfig: "Supabase Connection Settings",
-    supabaseUrl: "Supabase Project URL",
-    supabaseKey: "Supabase Anon/Service Key",
-    connectSupabase: "Connect to Supabase DB",
-    connected: "Supabase Connected",
+    dbConfig: "Docker PostgreSQL Settings",
+    dbHost: "Database Host",
+    dbName: "Database Name",
+    connectDatabase: "Test Docker DB Connection",
+    connected: "Docker PostgreSQL Connected",
     disconnected: "Local Sandbox DB (Offline fallback active)",
     currencySelector: "Currency Selector",
     lightMode: "Light Mode",
@@ -255,11 +255,11 @@ export const translations: Record<"en" | "ja", TranslationDict> = {
     unpaid: "未払",
     markAsPaid: "支払完了にする",
     healthLabel: "極めて優秀",
-    supabaseConfig: "Supabase 接続設定",
-    supabaseUrl: "Supabase プロジェクトURL",
-    supabaseKey: "Supabase Anonキー / サービスキー",
-    connectSupabase: "Supabaseデータベースに接続",
-    connected: "Supabaseに接続完了",
+    dbConfig: "Docker PostgreSQL 設定",
+    dbHost: "データベースホスト",
+    dbName: "データベース名",
+    connectDatabase: "Docker DB接続をテスト",
+    connected: "Docker PostgreSQLに接続完了",
     disconnected: "ローカルサンドボックスDB（オフライン起動中）",
     currencySelector: "通貨切り替え",
     lightMode: "ライトモード",

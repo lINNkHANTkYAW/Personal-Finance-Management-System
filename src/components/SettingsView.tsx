@@ -194,7 +194,7 @@ export default function SettingsView({
               <Trash2 size={14} /> Danger Zone
             </h4>
             <p className="text-xs text-slate-400 dark:text-slate-500 leading-relaxed">
-              Reset the sandbox mock database back to original defaults. All custom expenditures, newly established targets, and Supabase database URLs will be permanently wiped.
+              Reset the local PostgreSQL database back to original defaults. All custom expenditures, newly established targets, and connection metadata will be permanently wiped.
             </p>
             <button
               onClick={handleResetApp}

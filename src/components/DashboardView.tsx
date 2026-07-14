@@ -67,55 +67,101 @@ export default function DashboardView({
   const [incomeMerchant, setIncomeMerchant] = useState("");
   const [incomeAmount, setIncomeAmount] = useState("");
 
-  // 12 months Balance History Chart Data
-  const lineChartData = [
-    { month: "Aug 25", Balance: 8200 },
-    { month: "Sep 25", Balance: 8500 },
-    { month: "Oct 25", Balance: 8900 },
-    { month: "Nov 25", Balance: 9400 },
-    { month: "Dec 25", Balance: 9200 },
-    { month: "Jan 26", Balance: 9900 },
-    { month: "Feb 26", Balance: 10400 },
-    { month: "Mar 26", Balance: 10100 },
-    { month: "Apr 26", Balance: 10800 },
-    { month: "May 26", Balance: 11400 },
-    { month: "Jun 26", Balance: 11900 },
-    { month: "Jul 26", Balance: 12450.75 },
-  ];
-
-  // 6 months Income vs Expenses Bar Chart Data
-  const barChartData = [
-    { month: "Feb", Income: 4800, Expenses: 3200 },
-    { month: "Mar", Income: 5200, Expenses: 3400 },
-    { month: "Apr", Income: 5000, Expenses: 3100 },
-    { month: "May", Income: 5400, Expenses: 3300 },
-    { month: "Jun", Income: 5100, Expenses: 2900 },
-    { month: "Jul", Income: 5420, Expenses: 3125 },
-  ];
-
-  // Spending Category Donut Data
-  const donutData = [
-    { name: language === "ja" ? "住宅費" : "Housing", value: 1850 },
-    { name: language === "ja" ? "食費" : "Food", value: 450 },
-    { name: language === "ja" ? "交通費" : "Transportation", value: 110 },
-    { name: language === "ja" ? "買い物" : "Shopping", value: 320 },
-    { name: language === "ja" ? "エンタメ" : "Entertainment", value: 30.98 },
-    { name: language === "ja" ? "医療費" : "Healthcare", value: 0 },
-    { name: language === "ja" ? "光熱費" : "Utilities", value: 230.20 },
-    { name: language === "ja" ? "旅行" : "Travel", value: 134.00 },
-  ].filter(item => item.value > 0);
-
   const COLORS = ["#10B981", "#3B82F6", "#F59E0B", "#EF4444", "#8B5CF6", "#EC4899", "#14B8A6", "#64748B"];
 
-  // KPI Calculations
-  const checkingAcc = data.accounts.find(a => a.type === "checking");
-  const savingsAcc = data.accounts.find(a => a.type === "savings");
-  
-  // Total Balance (styled current balance)
-  const totalBalanceVal = 12450.75; // requested fixed base matching, can sync accounts
-  const monthlyIncomeVal = 5420;
-  const monthlyExpensesVal = 3125;
-  const savingsRateVal = 42;
+  const now = new Date();
+  const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
+  const monthKeys = Array.from({ length: 12 }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - (11 - i), 1);
+    return {
+      key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
+      label: d.toLocaleString(language === "ja" ? "ja-JP" : "en-US", {
+        month: "short",
+        year: "2-digit",
+      }),
+      shortLabel: d.toLocaleString(language === "ja" ? "ja-JP" : "en-US", {
+        month: "short",
+      }),
+    };
+  });
+
+  const monthTotals = monthKeys.map(({ key, label, shortLabel }) => {
+    const monthTxs = data.transactions.filter(
+      (tx) => tx.date.startsWith(key) && tx.status === "completed"
+    );
+    const income = monthTxs
+      .filter((tx) => tx.type === "income")
+      .reduce((sum, tx) => sum + tx.amount, 0);
+    const expenses = monthTxs
+      .filter((tx) => tx.type === "expense")
+      .reduce((sum, tx) => sum + tx.amount, 0);
+    return { key, label, shortLabel, income, expenses, net: income - expenses };
+  });
+
+  const totalBalanceVal = data.accounts.reduce((sum, acc) => sum + acc.balance, 0);
+  const currentMonth = monthTotals[monthTotals.length - 1] ?? {
+    income: 0,
+    expenses: 0,
+  };
+  const monthlyIncomeVal = currentMonth.income;
+  const monthlyExpensesVal = currentMonth.expenses;
+  const savingsRateVal =
+    monthlyIncomeVal > 0
+      ? Math.max(
+          0,
+          Math.round(((monthlyIncomeVal - monthlyExpensesVal) / monthlyIncomeVal) * 100)
+        )
+      : 0;
+
+  // Reconstruct month-end balances from current totals walked backward by net cashflow.
+  let runningBalance = totalBalanceVal;
+  const lineChartData = [...monthTotals]
+    .reverse()
+    .map((month, index) => {
+      const point = { month: month.label, Balance: Math.round(runningBalance * 100) / 100 };
+      if (index < monthTotals.length - 1) {
+        runningBalance -= month.net;
+      }
+      return point;
+    })
+    .reverse();
+
+  const barChartData = monthTotals.slice(-6).map((month) => ({
+    month: month.shortLabel,
+    Income: Math.round(month.income * 100) / 100,
+    Expenses: Math.round(month.expenses * 100) / 100,
+  }));
+
+  const categoryTotals = new Map<string, number>();
+  data.transactions
+    .filter(
+      (tx) =>
+        tx.type === "expense" &&
+        tx.status === "completed" &&
+        tx.date.startsWith(currentMonthKey)
+    )
+    .forEach((tx) => {
+      categoryTotals.set(
+        tx.category,
+        (categoryTotals.get(tx.category) || 0) + tx.amount
+      );
+    });
+
+  const donutData = Array.from(categoryTotals.entries())
+    .map(([name, value]) => ({
+      name: translateCategory(name, language),
+      value: Math.round(value * 100) / 100,
+    }))
+    .filter((item) => item.value > 0)
+    .sort((a, b) => b.value - a.value);
+
+  const healthScore = data.healthScore?.score ?? 0;
+  const healthLabelText =
+    data.healthScore?.label ||
+    (language === "ja"
+      ? "口座や取引を追加すると健全性が更新されます。"
+      : "Add accounts and transactions to build your financial health score.");
 
   const handleAddExpense = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -190,10 +236,12 @@ export default function DashboardView({
               {t.currentBalance}
             </span>
             <h3 className="font-sans font-extrabold text-2xl text-slate-800 dark:text-slate-100 mt-1">
-              {formatCurrency(totalBalanceVal, "USD", language)}
+              {formatCurrency(totalBalanceVal, currency, language)}
             </h3>
-            <p className="text-[10px] text-emerald-500 font-semibold mt-1 flex items-center gap-0.5">
-              <TrendingUp size={12} /> +2.5% vs last month
+            <p className="text-[10px] text-slate-400 font-semibold mt-1">
+              {data.accounts.length === 0
+                ? (language === "ja" ? "口座が未登録です" : "No accounts yet")
+                : `${data.accounts.length} ${language === "ja" ? "口座" : "accounts"}`}
             </p>
           </div>
           <div className="p-3 bg-emerald-500/10 text-emerald-500 dark:bg-emerald-500/20 rounded-xl">
@@ -208,10 +256,10 @@ export default function DashboardView({
               {t.monthlyIncome}
             </span>
             <h3 className="font-sans font-extrabold text-2xl text-slate-800 dark:text-slate-100 mt-1">
-              {formatCurrency(monthlyIncomeVal, "USD", language)}
+              {formatCurrency(monthlyIncomeVal, currency, language)}
             </h3>
-            <p className="text-[10px] text-emerald-500 font-semibold mt-1 flex items-center gap-0.5">
-              <ArrowDownLeft size={12} /> Direct deposits completed
+            <p className="text-[10px] text-slate-400 font-semibold mt-1">
+              {language === "ja" ? "今月の収入" : "This month"}
             </p>
           </div>
           <div className="p-3 bg-emerald-500/10 text-emerald-500 dark:bg-emerald-500/20 rounded-xl">
@@ -226,10 +274,10 @@ export default function DashboardView({
               {t.monthlyExpenses}
             </span>
             <h3 className="font-sans font-extrabold text-2xl text-slate-800 dark:text-slate-100 mt-1">
-              {formatCurrency(monthlyExpensesVal, "USD", language)}
+              {formatCurrency(monthlyExpensesVal, currency, language)}
             </h3>
-            <p className="text-[10px] text-red-500 font-semibold mt-1 flex items-center gap-0.5">
-              <ArrowUpRight size={12} /> Active cash burns out
+            <p className="text-[10px] text-slate-400 font-semibold mt-1">
+              {language === "ja" ? "今月の支出" : "This month"}
             </p>
           </div>
           <div className="p-3 bg-red-500/10 text-red-500 dark:bg-red-500/20 rounded-xl">
@@ -246,8 +294,10 @@ export default function DashboardView({
             <h3 className="font-sans font-extrabold text-2xl text-slate-800 dark:text-slate-100 mt-1">
               {savingsRateVal}%
             </h3>
-            <p className="text-[10px] text-emerald-500 font-semibold mt-1 flex items-center gap-0.5">
-              <TrendingUp size={12} /> Optimal tier cushion
+            <p className="text-[10px] text-slate-400 font-semibold mt-1">
+              {monthlyIncomeVal > 0
+                ? (language === "ja" ? "収入に対する貯蓄割合" : "Of this month's income")
+                : (language === "ja" ? "収入データなし" : "No income recorded")}
             </p>
           </div>
           <div className="p-3 bg-blue-500/10 text-blue-500 dark:bg-blue-500/20 rounded-xl">
@@ -443,14 +493,14 @@ export default function DashboardView({
                 strokeWidth="10"
                 fill="transparent"
                 strokeDasharray={376.8}
-                strokeDashoffset={376.8 - (376.8 * 89) / 100}
+                strokeDashoffset={376.8 - (376.8 * healthScore) / 100}
                 strokeLinecap="round"
                 className="transition-all duration-1000 ease-out"
               />
             </svg>
             <div className="absolute flex flex-col items-center justify-center text-center">
               <span className="font-sans font-extrabold text-3xl text-slate-800 dark:text-slate-100">
-                89
+                {healthScore}
               </span>
               <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">
                 / 100
@@ -460,10 +510,10 @@ export default function DashboardView({
 
           <div className="text-center">
             <span className="text-xs font-extrabold text-emerald-500 bg-emerald-50 dark:bg-emerald-500/10 px-3 py-1 rounded-full uppercase tracking-wider">
-              {t.healthLabel}
+              {data.healthScore?.rating || t.healthLabel}
             </span>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-2.5 px-2">
-              Your financial health score is optimal. You spent less than your limit threshold this month.
+              {healthLabelText}
             </p>
           </div>
         </div>
@@ -540,7 +590,7 @@ export default function DashboardView({
                     <span className="text-slate-500 dark:text-slate-400 truncate">{item.name}</span>
                   </div>
                   <span className="text-slate-800 dark:text-slate-200 font-mono font-bold">
-                    {formatCurrency(item.value, "USD", language)}
+                    {formatCurrency(item.value, currency, language)}
                   </span>
                 </div>
               ))}
@@ -572,30 +622,32 @@ export default function DashboardView({
             </div>
 
             <div className="space-y-4 mt-4">
-              <div className="flex gap-3 text-xs leading-relaxed">
-                <span className="p-1.5 bg-emerald-500/10 text-emerald-500 rounded-lg h-fit shrink-0 mt-0.5">⚠️</span>
-                <p className="text-slate-600 dark:text-slate-450 font-medium">
-                  {t.advisorQuote1}
+              {data.transactions.length === 0 ? (
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                  {language === "ja"
+                    ? "取引データがありません。口座や取引を追加すると、ここにアドバイスが表示されます。"
+                    : "No activity yet. Add accounts and transactions to unlock personalized insights here."}
                 </p>
-              </div>
-              <div className="flex gap-3 text-xs leading-relaxed">
-                <span className="p-1.5 bg-emerald-500/10 text-emerald-500 rounded-lg h-fit shrink-0 mt-0.5">💡</span>
-                <p className="text-slate-600 dark:text-slate-450 font-medium">
-                  {t.advisorQuote2}
-                </p>
-              </div>
-              <div className="flex gap-3 text-xs leading-relaxed">
-                <span className="p-1.5 bg-emerald-500/10 text-emerald-500 rounded-lg h-fit shrink-0 mt-0.5">🎉</span>
-                <p className="text-slate-600 dark:text-slate-450 font-medium">
-                  {t.advisorQuote3}
-                </p>
-              </div>
-              <div className="flex gap-3 text-xs leading-relaxed">
-                <span className="p-1.5 bg-emerald-500/10 text-emerald-500 rounded-lg h-fit shrink-0 mt-0.5">📈</span>
-                <p className="text-slate-600 dark:text-slate-450 font-medium">
-                  {t.advisorQuote4}
-                </p>
-              </div>
+              ) : (
+                <>
+                  <div className="flex gap-3 text-xs leading-relaxed">
+                    <span className="p-1.5 bg-emerald-500/10 text-emerald-500 rounded-lg h-fit shrink-0 mt-0.5">💡</span>
+                    <p className="text-slate-600 dark:text-slate-400 font-medium">
+                      {language === "ja"
+                        ? `今月の収入は ${formatCurrency(monthlyIncomeVal, currency, language)}、支出は ${formatCurrency(monthlyExpensesVal, currency, language)} です。`
+                        : `This month you earned ${formatCurrency(monthlyIncomeVal, currency, language)} and spent ${formatCurrency(monthlyExpensesVal, currency, language)}.`}
+                    </p>
+                  </div>
+                  <div className="flex gap-3 text-xs leading-relaxed">
+                    <span className="p-1.5 bg-emerald-500/10 text-emerald-500 rounded-lg h-fit shrink-0 mt-0.5">📈</span>
+                    <p className="text-slate-600 dark:text-slate-400 font-medium">
+                      {language === "ja"
+                        ? `貯蓄率は ${savingsRateVal}% です。詳細は AI Insights で確認できます。`
+                        : `Your savings rate is ${savingsRateVal}%. Open AI Insights for deeper analysis.`}
+                    </p>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -616,7 +668,12 @@ export default function DashboardView({
             </div>
 
             <div className="space-y-3 mt-4">
-              {data.bills.slice(0, 3).map((bill) => (
+              {data.bills.length === 0 ? (
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  {language === "ja" ? "予定されている請求はありません。" : "No upcoming bills."}
+                </p>
+              ) : (
+                data.bills.slice(0, 3).map((bill) => (
                 <div key={bill.id} className="flex items-center justify-between text-xs py-1.5">
                   <div className="flex items-center gap-2.5 min-w-0">
                     <span className={`w-2 h-2 rounded-full shrink-0 ${
@@ -626,12 +683,13 @@ export default function DashboardView({
                   </div>
                   <div className="text-right shrink-0">
                     <span className="font-bold text-slate-800 dark:text-slate-100">
-                      {formatCurrency(bill.amount, "USD", language)}
+                      {formatCurrency(bill.amount, currency, language)}
                     </span>
                     <span className="text-[9px] text-slate-400 block">Due {bill.dueDate}</span>
                   </div>
                 </div>
-              ))}
+              ))
+              )}
             </div>
           </div>
         </div>
@@ -656,14 +714,19 @@ export default function DashboardView({
           </div>
 
           <div className="space-y-3.5">
-            {data.budgets.map((b) => {
+            {data.budgets.length === 0 ? (
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                {language === "ja" ? "予算が未設定です。" : "No budgets set yet."}
+              </p>
+            ) : (
+              data.budgets.map((b) => {
               const ratio = Math.min(100, Math.round((b.spent / b.limit) * 100)) || 0;
               return (
                 <div key={b.id} className="space-y-1">
                   <div className="flex justify-between items-baseline text-xs">
                     <span className="text-slate-500 font-semibold">{translateCategory(b.category, language)}</span>
                     <span className="font-extrabold text-slate-700 dark:text-slate-300">
-                      {formatCurrency(b.spent, "USD", language)} <span className="text-slate-400 font-medium">of {formatCurrency(b.limit, "USD", language)}</span>
+                      {formatCurrency(b.spent, currency, language)} <span className="text-slate-400 font-medium">of {formatCurrency(b.limit, currency, language)}</span>
                     </span>
                   </div>
                   <div className="w-full h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
@@ -674,7 +737,8 @@ export default function DashboardView({
                   </div>
                 </div>
               );
-            })}
+            })
+            )}
           </div>
         </div>
 
@@ -693,16 +757,19 @@ export default function DashboardView({
           </div>
 
           <div className="space-y-3.5">
-            {data.savingsGoals.map((g) => {
+            {data.savingsGoals.length === 0 ? (
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                {language === "ja" ? "貯蓄目標が未設定です。" : "No savings goals yet."}
+              </p>
+            ) : (
+              data.savingsGoals.map((g) => {
               const pacing = Math.min(100, Math.round((g.saved / g.target) * 100)) || 0;
               return (
                 <div key={g.id} className="space-y-1">
                   <div className="flex justify-between items-baseline text-xs">
-                    <span className="text-slate-500 font-semibold">
-                      {g.name === "Emergency Fund" ? t.emergencyFund : g.name === "Vacation" ? t.vacation : g.name === "New Laptop" ? t.newLaptop : g.name}
-                    </span>
+                    <span className="text-slate-500 font-semibold">{g.name}</span>
                     <span className="font-extrabold text-slate-700 dark:text-slate-300">
-                      {formatCurrency(g.saved, "USD", language)} <span className="text-slate-400 font-medium">of {formatCurrency(g.target, "USD", language)}</span>
+                      {formatCurrency(g.saved, currency, language)} <span className="text-slate-400 font-medium">of {formatCurrency(g.target, currency, language)}</span>
                     </span>
                   </div>
                   <div className="w-full h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
@@ -710,7 +777,8 @@ export default function DashboardView({
                   </div>
                 </div>
               );
-            })}
+            })
+            )}
           </div>
         </div>
 
@@ -742,7 +810,14 @@ export default function DashboardView({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
-              {data.transactions.slice(0, 5).map((tx) => (
+              {data.transactions.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="py-8 text-center text-slate-500 dark:text-slate-400">
+                    {language === "ja" ? "取引がありません。" : "No transactions yet."}
+                  </td>
+                </tr>
+              ) : (
+                data.transactions.slice(0, 5).map((tx) => (
                 <tr key={tx.id} className="hover:bg-slate-50/[0.01]">
                   <td className="py-3 font-bold text-slate-800 dark:text-slate-200">{tx.merchant}</td>
                   <td className="py-3">
@@ -758,10 +833,11 @@ export default function DashboardView({
                   </td>
                   <td className="py-3 text-right font-extrabold font-mono text-slate-800 dark:text-slate-200">
                     {tx.type === "income" ? "+" : "-"}
-                    {formatCurrency(tx.amount, "USD", language)}
+                    {formatCurrency(tx.amount, currency, language)}
                   </td>
                 </tr>
-              ))}
+              ))
+              )}
             </tbody>
           </table>
         </div>

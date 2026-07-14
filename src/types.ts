@@ -92,9 +92,10 @@ export interface FinanceData {
   investments: Investment[];
   bills: UpcomingBill[];
   healthScore: FinancialHealth;
-  supabaseConfig: {
-    url: string;
-    anonKey: string;
+  dbConfig: {
+    host: string;
+    port: number;
+    database: string;
     isConnected: boolean;
   };
 }

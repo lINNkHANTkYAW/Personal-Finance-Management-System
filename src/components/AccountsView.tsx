@@ -29,8 +29,6 @@ export default function AccountsView({
   onUpdateData
 }: AccountsViewProps) {
   const t = translations[language];
-  const [supabaseUrl, setSupabaseUrl] = useState(data.supabaseConfig.url || "");
-  const [supabaseKey, setSupabaseKey] = useState(data.supabaseConfig.anonKey || "");
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<"success" | "error" | null>(null);
 
@@ -39,26 +37,21 @@ export default function AccountsView({
   const [newAccType, setNewAccType] = useState<"checking" | "savings" | "credit" | "investment">("checking");
   const [newAccBalance, setNewAccBalance] = useState("");
 
-  const handleConnectSupabase = async () => {
+  const handleConnectDatabase = async () => {
     setIsTesting(true);
     setTestResult(null);
 
     try {
-      // Credentials live on the server (.env.local); this verifies they can
-      // actually reach the configured Supabase project and seeds the table.
-      const response = await fetch("/api/supabase/connect", {
+      const response = await fetch("/api/db/connect", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });
       const result = await response.json();
 
-      // Reload full state so the real connection status propagates everywhere.
       const financeRes = await fetch("/api/finance");
       if (financeRes.ok) {
         const freshData = await financeRes.json();
         onUpdateData(freshData);
-        setSupabaseUrl(freshData.supabaseConfig?.url || "");
-        setSupabaseKey(freshData.supabaseConfig?.anonKey || "");
       }
 
       setTestResult(result.connected ? "success" : "error");
@@ -173,7 +166,7 @@ export default function AccountsView({
         </div>
       </div>
 
-      {/* Main Grid: Accounts List & Supabase Setup */}
+      {/* Main Grid: Accounts List & Docker DB Setup */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
         {/* Left Side: Connected Accounts list */}
@@ -286,7 +279,7 @@ export default function AccountsView({
           </div>
         </div>
 
-        {/* Right Side: Supabase Setup Panel */}
+        {/* Right Side: Docker PostgreSQL Setup Panel */}
         <div className="lg:col-span-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 shadow-sm p-6 flex flex-col justify-between">
           <div>
             <div className="flex items-center gap-2 mb-3">
@@ -294,45 +287,43 @@ export default function AccountsView({
                 <Database size={18} />
               </div>
               <h3 className="font-sans font-bold text-base text-slate-800 dark:text-slate-100">
-                {t.supabaseConfig}
+                {t.dbConfig}
               </h3>
             </div>
             
             <p className="text-xs text-slate-400 dark:text-slate-500 leading-relaxed mb-4">
-              Switch from our high-performance local sandbox database to your actual production Supabase PostgreSQL project instantly by configuring credentials below.
+              All finance data is stored in PostgreSQL running in Docker. Start the database with `docker compose up -d`, then verify the connection below.
             </p>
 
             <div className="space-y-3.5">
               <div>
                 <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 block uppercase tracking-wider mb-1">
-                  {t.supabaseUrl}
+                  {t.dbHost}
                 </label>
                 <input
                   type="text"
-                  value={supabaseUrl}
-                  onChange={(e) => setSupabaseUrl(e.target.value)}
-                  placeholder="https://xyzcompany.supabase.co"
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 text-xs font-semibold text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500"
+                  value={`${data.dbConfig.host}:${data.dbConfig.port}`}
+                  readOnly
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 text-xs font-semibold text-slate-700 dark:text-slate-300 focus:outline-none"
                 />
               </div>
 
               <div>
                 <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 block uppercase tracking-wider mb-1">
-                  {t.supabaseKey}
+                  {t.dbName}
                 </label>
                 <input
-                  type="password"
-                  value={supabaseKey}
-                  onChange={(e) => setSupabaseKey(e.target.value)}
-                  placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 text-xs font-semibold text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500"
+                  type="text"
+                  value={data.dbConfig.database}
+                  readOnly
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 text-xs font-semibold text-slate-700 dark:text-slate-300 focus:outline-none"
                 />
               </div>
             </div>
 
             {/* Live Indicator Status */}
             <div className="mt-5 p-4 rounded-xl border border-slate-150 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-950/20 flex gap-3">
-              {data.supabaseConfig.isConnected ? (
+              {data.dbConfig.isConnected ? (
                 <>
                   <CheckCircle className="text-emerald-500 mt-0.5 shrink-0" size={16} />
                   <div>
@@ -340,7 +331,7 @@ export default function AccountsView({
                       {t.connected}
                     </span>
                     <span className="text-[10px] text-slate-400 dark:text-slate-500 block mt-0.5 leading-relaxed">
-                      All tables (accounts, transactions, bills, budgets) are automatically synced to your cloud Postgres schema!
+                      All tables (accounts, transactions, bills, budgets) are synced to your Docker PostgreSQL schema.
                     </span>
                   </div>
                 </>
@@ -352,7 +343,7 @@ export default function AccountsView({
                       {t.disconnected}
                     </span>
                     <span className="text-[10px] text-slate-400 dark:text-slate-500 block mt-0.5 leading-relaxed">
-                      ElysianWealth is using a sandboxed local-file backup storage so that your app remains fully interactive instantly without needing credentials.
+                      PostgreSQL is offline. Run `docker compose up -d` and confirm POSTGRES_* values in `.env.local`.
                     </span>
                   </div>
                 </>
@@ -366,13 +357,13 @@ export default function AccountsView({
             )}
             {testResult === "error" && (
               <div className="mt-3 p-2.5 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-200/50 dark:border-red-800/50 text-[11px] text-red-700 dark:text-red-400 font-semibold flex items-center gap-2">
-                <ServerCrash size={14} /> Connection Failed. Check credentials & try again.
+                <ServerCrash size={14} /> Connection Failed. Start Docker Postgres and try again.
               </div>
             )}
           </div>
 
           <button
-            onClick={handleConnectSupabase}
+            onClick={handleConnectDatabase}
             disabled={isTesting}
             className="w-full mt-6 py-2.5 bg-slate-900 dark:bg-slate-100 hover:bg-slate-800 dark:hover:bg-white text-white dark:text-slate-900 text-xs font-semibold rounded-xl flex items-center justify-center gap-2 transition-colors disabled:opacity-50 shadow-md shadow-slate-900/10"
           >
@@ -381,7 +372,7 @@ export default function AccountsView({
             ) : (
               <>
                 <Database size={14} />
-                {t.connectSupabase}
+                {t.connectDatabase}
               </>
             )}
           </button>

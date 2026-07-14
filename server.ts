@@ -7,7 +7,12 @@ dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
 import { loadFinanceData, saveFinanceData, updateFinancialKPIs } from "./src/db/store";
-import { getCachedSupabaseStatus, getSupabaseStatus } from "./src/db/supabase";
+import {
+  getCachedDatabaseStatus,
+  getDatabaseStatus,
+  clearDatabaseStatusCache,
+  getDatabaseEnvConfig,
+} from "./src/db/postgres";
 import { FinanceData, Transaction, Budget, SavingsGoal, UpcomingBill, Account } from "./src/types";
 
 // Initialize express
@@ -42,18 +47,15 @@ function getGeminiClient(): GoogleGenAI | null {
   return aiClient;
 }
 
-// Stamp the real Supabase connection status onto the data payload so the
-// UI can accurately reflect whether we are on the local sandbox or Supabase.
-async function withSupabaseStatus(data: FinanceData): Promise<FinanceData> {
-  const status = await getCachedSupabaseStatus();
-  data.supabaseConfig = {
-    ...data.supabaseConfig,
+// Stamp the live Docker PostgreSQL connection status onto the data payload.
+async function withDatabaseStatus(data: FinanceData): Promise<FinanceData> {
+  const status = await getCachedDatabaseStatus();
+  const env = getDatabaseEnvConfig();
+  data.dbConfig = {
+    host: status.host || env.host,
+    port: status.port || env.port,
+    database: status.database || env.database,
     isConnected: status.connected,
-    url: status.url || data.supabaseConfig?.url || "",
-    anonKey:
-      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
-      data.supabaseConfig?.anonKey ||
-      "",
   };
   return data;
 }
@@ -71,19 +73,28 @@ app.get("/api/health", (req, res) => {
 app.get("/api/finance", async (req, res) => {
   const data = await loadFinanceData();
   const updatedData = updateFinancialKPIs(data);
-  await withSupabaseStatus(updatedData);
+  await withDatabaseStatus(updatedData);
   // Read-only: do NOT persist here. Writing on every GET would modify a
   // watched file and cause Vite to reload the page in a loop.
   res.json(updatedData);
 });
 
-// 3. Update general finance data or Supabase config
+// 3. Update general finance data
 app.post("/api/finance", async (req, res) => {
   const updated = req.body as FinanceData;
   const withKPIs = updateFinancialKPIs(updated);
-  await withSupabaseStatus(withKPIs);
+  await withDatabaseStatus(withKPIs);
   await saveFinanceData(withKPIs);
   res.json(withKPIs);
+});
+
+// 3b. Reset all finance data to empty (no seed/mock data)
+app.post("/api/finance/reset", async (req, res) => {
+  const { getInitialData } = await import("./src/db/initialData");
+  const empty = updateFinancialKPIs(getInitialData());
+  await withDatabaseStatus(empty);
+  await saveFinanceData(empty);
+  res.json(empty);
 });
 
 // 4. Add a transaction
@@ -192,41 +203,36 @@ app.post("/api/finance/bill", async (req, res) => {
   res.json(updated);
 });
 
-// 7b. Supabase connect / status endpoint.
-// The credentials come from the server environment (.env.local), so this
-// simply verifies they can actually reach the configured Supabase project
-// and reports the live status. On first successful connect it seeds the
-// remote table with the current local data if the table is empty.
-app.post("/api/supabase/connect", async (req, res) => {
-  const status = await getSupabaseStatus();
+// 7b. Docker PostgreSQL connect / status endpoint.
+app.post("/api/db/connect", async (req, res) => {
+  clearDatabaseStatusCache();
+  const status = await getDatabaseStatus();
 
   if (!status.configured) {
     return res.status(400).json({
       connected: false,
       configured: false,
       message:
-        "Supabase credentials are not configured. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY to .env.local and restart the server.",
+        "PostgreSQL credentials are not configured. Add POSTGRES_* values to .env.local and start Docker with `docker compose up -d`.",
     });
   }
 
+  const data = await loadFinanceData();
+  await withDatabaseStatus(data);
+
   if (status.connected) {
-    // loadFinanceData seeds the remote tables on first connect if empty.
-    const data = await loadFinanceData();
-    await withSupabaseStatus(data);
     await saveFinanceData(data);
-  } else {
-    // Not reachable: just refresh local state and report status.
-    const data = await loadFinanceData();
-    await withSupabaseStatus(data);
   }
 
   return res.json({
     connected: status.connected,
     configured: status.configured,
-    url: status.url,
+    host: status.host,
+    port: status.port,
+    database: status.database,
     message: status.connected
-      ? "Connected to Supabase."
-      : "Credentials are set but the project/table could not be reached. Check the SQL schema and network access.",
+      ? "Connected to Docker PostgreSQL."
+      : "Credentials are set but PostgreSQL could not be reached. Run `docker compose up -d` and check POSTGRES_* settings.",
   });
 });
 

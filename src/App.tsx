@@ -26,22 +26,7 @@ export default function App() {
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [notifications, setNotifications] = useState<any[]>([
-    {
-      id: "n-1",
-      type: "warning",
-      message: "You used 75% of your food budget limit this month.",
-      time: "2 hours ago",
-      read: false
-    },
-    {
-      id: "n-2",
-      type: "success",
-      message: "Direct deposit of $5,420 from ElysianCorp completed successfully.",
-      time: "1 day ago",
-      read: true
-    }
-  ]);
+  const [notifications, setNotifications] = useState<any[]>([]);
   const [data, setData] = useState<FinanceData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -109,7 +94,7 @@ export default function App() {
         language={language}
         isCollapsed={sidebarCollapsed}
         setIsCollapsed={setSidebarCollapsed}
-        isSupabaseConnected={data.supabaseConfig.isConnected}
+        isDbConnected={data.dbConfig.isConnected}
       />
 
       {/* Main Panel Content Wrap */}
