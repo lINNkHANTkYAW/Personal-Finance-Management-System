@@ -404,29 +404,9 @@ Respond strictly in JSON format conforming to this schema:
     }
   }
 
-  // Fallback / simulated high-fidelity OCR parser if no API key or image is uploaded
-  // Generates highly realistic random/mock receipt extractions for interactive simulation
-  const mockMerchants = [
-    { merchant: "Starbucks Coffee", amount: 12.40, tax: 1.10, category: "Food" },
-    { merchant: "Walmart Stores", amount: 64.15, tax: 5.40, category: "Shopping" },
-    { merchant: "Chevron Gas", amount: 48.00, tax: 4.20, category: "Transportation" },
-    { merchant: "Whole Foods", amount: 112.50, tax: 8.90, category: "Food" },
-    { merchant: "Best Buy Electronics", amount: 329.00, tax: 28.50, category: "Shopping" },
-  ];
-
-  const randomReceipt = mockMerchants[Math.floor(Math.random() * mockMerchants.length)];
-
-  // Return a simulation response with short delay
-  setTimeout(() => {
-    res.json({
-      merchant: randomReceipt.merchant,
-      amount: randomReceipt.amount,
-      tax: randomReceipt.tax,
-      date: new Date().toISOString().split("T")[0],
-      category: randomReceipt.category,
-      rawText: "MOCK OCR PARSING SUCCESS\n-----------------------\nSTARBUCKS #4102\n124 GRAND AVE, CA\n-----------------------\n1 TALL LATTE      $5.40\n1 BLUEBERRY SCONE $5.90\nTAX 8.5%          $1.10\n-----------------------\nTOTAL             $12.40\nTHANK YOU FOR YOUR VISIT!",
-    });
-  }, 1200);
+  return res.status(422).json({
+    error: "Receipt OCR is not available. Upload a receipt image or configure Gemini API access.",
+  });
 });
 
 // -------------------------------------------------------------

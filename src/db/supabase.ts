@@ -12,12 +12,29 @@ import type {
 let client: SupabaseClient | null = null;
 let clientInitFailed = false;
 
+function getSupabaseEnvConfig() {
+  const url =
+    process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    process.env.NEXT_PUBLIC_SUPERBASE_URL ||
+    process.env.VITE_SUPABASE_URL ||
+    process.env.SUPABASE_URL ||
+    null;
+
+  const key =
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+    process.env.NEXT_PUBLIC_SUPERBASE_PUBLISHABLE_KEY ||
+    process.env.VITE_SUPABASE_ANON_KEY ||
+    process.env.SUPABASE_ANON_KEY ||
+    null;
+
+  return { url, key };
+}
+
 function buildClient(): SupabaseClient | null {
   if (client) return client;
   if (clientInitFailed) return null;
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  const { url, key } = getSupabaseEnvConfig();
 
   if (!url || !key || url.trim() === "" || key.trim() === "") {
     clientInitFailed = true;
@@ -49,6 +66,18 @@ export function isSupabaseConfigured(): boolean {
 // ---------------------------------------------------------------------------
 
 type Row = Record<string, unknown>;
+
+function isMissingSchemaError(error: { message?: string } | null | undefined): boolean {
+  if (!error) return false;
+  const message = (error.message || "").toLowerCase();
+  return (
+    message.includes("does not exist") ||
+    message.includes("relation") ||
+    message.includes("column") ||
+    message.includes("schema cache") ||
+    message.includes("not found")
+  );
+}
 
 const toAccountRow = (a: Account): Row => ({
   id: a.id,
@@ -180,22 +209,13 @@ export async function loadAll(): Promise<LoadedRows | null> {
   if (!sb) return null;
 
   try {
-    const [
-      accRes,
-      txRes,
-      budRes,
-      goalRes,
-      invRes,
-      billRes,
-      metaRes,
-    ] = await Promise.all([
+    const [accRes, txRes, budRes, goalRes, invRes, billRes] = await Promise.all([
       sb.from("accounts").select("*"),
       sb.from("transactions").select("*"),
       sb.from("budgets").select("*"),
       sb.from("savings_goals").select("*"),
       sb.from("investments").select("*"),
       sb.from("bills").select("*"),
-      sb.from("finance_meta").select("*").eq("id", "main").maybeSingle(),
     ]);
 
     const firstError =
@@ -204,11 +224,21 @@ export async function loadAll(): Promise<LoadedRows | null> {
       budRes.error ||
       goalRes.error ||
       invRes.error ||
-      billRes.error ||
-      metaRes.error;
+      billRes.error;
     if (firstError) {
       console.error("Supabase load error:", firstError.message);
       return null;
+    }
+
+    let metaRes = { data: null, error: null as { message?: string } | null };
+    try {
+      metaRes = await sb.from("finance_meta").select("*").eq("id", "main").maybeSingle();
+    } catch (err) {
+      console.warn("Supabase metadata table unavailable, continuing without it:", err);
+    }
+
+    if (metaRes.error && !isMissingSchemaError(metaRes.error)) {
+      console.warn("Supabase metadata load warning:", metaRes.error.message);
     }
 
     return {
@@ -237,19 +267,21 @@ async function syncCollection(
   rows: Row[]
 ): Promise<void> {
   if (rows.length > 0) {
-    const { error: upsertErr } = await sb.from(table).upsert(rows, {
+    const dedupedRows = rows.filter((row) => row.id);
+    const { error: upsertErr } = await sb.from(table).upsert(dedupedRows, {
       onConflict: "id",
     });
     if (upsertErr) throw upsertErr;
 
-    const ids = rows.map((r) => r.id);
-    const { error: delErr } = await sb
-      .from(table)
-      .delete()
-      .not("id", "in", `(${ids.map((id) => `'${id}'`).join(",")})`);
-    if (delErr) throw delErr;
+    const ids = dedupedRows.map((r) => r.id);
+    if (ids.length > 0) {
+      const { error: delErr } = await sb
+        .from(table)
+        .delete()
+        .not("id", "in", `(${ids.map((id) => `'${id}'`).join(",")})`);
+      if (delErr) throw delErr;
+    }
   } else {
-    // No rows in this collection: delete everything.
     const { error: delErr } = await sb.from(table).delete().not("id", "is", null);
     if (delErr) throw delErr;
   }
@@ -269,15 +301,21 @@ export async function saveAll(data: FinanceData): Promise<boolean> {
       syncCollection(sb, "bills", data.bills.map(toBillRow)),
     ]);
 
-    const { error: metaErr } = await sb.from("finance_meta").upsert(
-      {
-        id: "main",
-        health_score: data.healthScore,
-        supabase_config: data.supabaseConfig,
-      },
-      { onConflict: "id" }
-    );
-    if (metaErr) throw metaErr;
+    try {
+      const { error: metaErr } = await sb.from("finance_meta").upsert(
+        {
+          id: "main",
+          health_score: data.healthScore,
+          supabase_config: data.supabaseConfig,
+        },
+        { onConflict: "id" }
+      );
+      if (metaErr && !isMissingSchemaError(metaErr)) throw metaErr;
+    } catch (err) {
+      if (!isMissingSchemaError(err as { message?: string })) {
+        throw err;
+      }
+    }
 
     return true;
   } catch (err) {
@@ -295,7 +333,7 @@ export async function testSupabaseConnection(): Promise<boolean> {
   if (!sb) return false;
 
   try {
-    const { error } = await sb.from("finance_meta").select("id").limit(1);
+    const { error } = await sb.from("accounts").select("id").limit(1);
     if (error) {
       console.error("Supabase connection test failed:", error.message);
       return false;
@@ -313,7 +351,7 @@ export async function getSupabaseStatus(): Promise<{
   url: string | null;
 }> {
   const configured = isSupabaseConfigured();
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || null;
+  const { url } = getSupabaseEnvConfig();
   const connected = configured ? await testSupabaseConnection() : false;
   return { configured, connected, url };
 }

@@ -1,6 +1,5 @@
 import fs from "fs";
 import path from "path";
-import { getInitialData } from "./initialData";
 import { FinanceData, Transaction, Budget, SavingsGoal, UpcomingBill, Account, Investment } from "../types";
 import {
   getSupabaseClient,
@@ -14,6 +13,19 @@ const DATA_FILE = path.join(process.cwd(), "data", "finance.json");
 
 export function isSupabaseActive(): boolean {
   return isSupabaseConfigured();
+}
+
+function createEmptyFinanceData(): FinanceData {
+  return {
+    accounts: [],
+    transactions: [],
+    budgets: [],
+    savingsGoals: [],
+    investments: [],
+    bills: [],
+    healthScore: { score: 0, rating: "Fair", label: "Start by adding your first account or transaction." },
+    supabaseConfig: { url: "", anonKey: "", isConnected: false },
+  };
 }
 
 function assemble(rows: LoadedRows): FinanceData {
@@ -48,31 +60,14 @@ export async function loadFinanceData(): Promise<FinanceData> {
         return assemble(rows);
       }
 
-      // Supabase is connected but uninitialized: seed it with the demo data.
-      const initial = getInitialData();
-      await saveFinanceData(initial);
-      return initial;
+      return createEmptyFinanceData();
     }
   }
 
-  // Local fallback (Supabase not configured or unreachable).
-  try {
-    const dir = path.dirname(DATA_FILE);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-
-    if (fs.existsSync(DATA_FILE)) {
-      const content = fs.readFileSync(DATA_FILE, "utf-8");
-      return JSON.parse(content);
-    }
-  } catch (error) {
-    console.error("Error loading data from file, using initial data:", error);
-  }
-
-  const initial = getInitialData();
-  await saveFinanceData(initial);
-  return initial;
+  // Use an empty state when Supabase is unavailable so the app never rehydrates
+  // old mock/demo data from the local file fallback.
+  const empty = createEmptyFinanceData();
+  return empty;
 }
 
 export async function saveFinanceData(data: FinanceData): Promise<void> {
