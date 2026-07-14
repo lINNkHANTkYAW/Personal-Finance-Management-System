@@ -15,6 +15,7 @@ import AnalyticsView from "./components/AnalyticsView";
 import ReportsView from "./components/ReportsView";
 import SettingsView from "./components/SettingsView";
 import { Loader2 } from "lucide-react";
+import { translations } from "./lib/translations";
 
 export default function App() {
   const [currentView, setCurrentView] = useState<View>(View.Dashboard);
@@ -32,6 +33,7 @@ export default function App() {
   const [data, setData] = useState<FinanceData | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const t = translations[language];
 
   const fetchFinanceData = async () => {
     setIsLoading(true);
@@ -123,14 +125,20 @@ export default function App() {
       <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center">
         <Loader2 className="text-emerald-500 animate-spin mb-4" size={32} />
         <span className="text-xs font-mono font-bold text-slate-500 tracking-wider">
-          CHECKING SESSION...
+          {t.checkingSession}
         </span>
       </div>
     );
   }
 
   if (!user) {
-    return <AuthPage onAuthenticated={setUser} />;
+    return (
+      <AuthPage
+        onAuthenticated={setUser}
+        language={language}
+        setLanguage={handleLanguageChange}
+      />
+    );
   }
 
   if (isLoading || !data) {
@@ -138,7 +146,7 @@ export default function App() {
       <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center">
         <Loader2 className="text-emerald-500 animate-spin mb-4" size={32} />
         <span className="text-xs font-mono font-bold text-slate-500 tracking-wider">
-          LOADING YOUR WORKSPACE...
+          {t.loadingWorkspace}
         </span>
       </div>
     );
@@ -195,6 +203,7 @@ export default function App() {
             <TransactionsView
               data={data}
               language={language}
+              currency={currency}
               onUpdateData={handleUpdateData}
             />
           )}
@@ -203,6 +212,7 @@ export default function App() {
             <BudgetsView
               data={data}
               language={language}
+              currency={currency}
               onUpdateData={handleUpdateData}
             />
           )}
@@ -211,6 +221,7 @@ export default function App() {
             <SavingsGoalsView
               data={data}
               language={language}
+              currency={currency}
               onUpdateData={handleUpdateData}
             />
           )}
@@ -219,6 +230,7 @@ export default function App() {
             <InvestmentsView
               data={data}
               language={language}
+              currency={currency}
               onUpdateData={handleUpdateData}
             />
           )}
@@ -227,12 +239,13 @@ export default function App() {
             <BillsView
               data={data}
               language={language}
+              currency={currency}
               onUpdateData={handleUpdateData}
             />
           )}
 
           {currentView === View.Analytics && (
-            <AnalyticsView data={data} language={language} />
+            <AnalyticsView data={data} language={language} currency={currency} />
           )}
 
           {currentView === View.AIInsights && (

@@ -13,12 +13,14 @@ import {
 interface SavingsGoalsViewProps {
   data: FinanceData;
   language: Language;
+  currency?: string;
   onUpdateData: (data: FinanceData) => void;
 }
 
 export default function SavingsGoalsView({
   data,
   language,
+  currency = "USD",
   onUpdateData
 }: SavingsGoalsViewProps) {
   const t = translations[language];
@@ -136,7 +138,7 @@ export default function SavingsGoalsView({
             {t.savingsGoals}
           </h3>
           <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
-            Define savings objectives, track percentage progress, and invest in plans
+            {t.savingsSubtitle}
           </p>
         </div>
 
@@ -144,7 +146,7 @@ export default function SavingsGoalsView({
           onClick={() => setShowAddGoal(!showAddGoal)}
           className="flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold text-xs py-1.5 px-3 rounded-xl transition-all shadow-sm"
         >
-          <Plus size={14} /> New Goal
+          <Plus size={14} /> {t.newGoal}
         </button>
       </div>
 
@@ -154,18 +156,18 @@ export default function SavingsGoalsView({
           className="p-5 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 rounded-2xl shadow-sm space-y-4 max-w-md"
         >
           <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-            Establish Financial Objective
+            {t.establishGoal}
           </h4>
           <div className="space-y-3">
             <div>
               <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 block uppercase tracking-wider mb-1">
-                Goal Name
+                {t.goalName}
               </label>
               <input
                 type="text"
                 value={goalName}
                 onChange={(e) => setGoalName(e.target.value)}
-                placeholder="e.g. Dream Vacation, New Car"
+                placeholder={t.goalName}
                 className="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 text-slate-800 dark:text-slate-100 focus:outline-none"
                 required
               />
@@ -173,26 +175,26 @@ export default function SavingsGoalsView({
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 block uppercase tracking-wider mb-1">
-                  Target Amount ($)
+                  {t.targetAmount}
                 </label>
                 <input
                   type="number"
                   value={goalTarget}
                   onChange={(e) => setGoalTarget(e.target.value)}
-                  placeholder="Target Value"
+                  placeholder={t.target}
                   className="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 text-slate-800 dark:text-slate-100 focus:outline-none"
                   required
                 />
               </div>
               <div>
                 <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 block uppercase tracking-wider mb-1">
-                  Already Saved ($)
+                  {t.alreadySaved}
                 </label>
                 <input
                   type="number"
                   value={goalSaved}
                   onChange={(e) => setGoalSaved(e.target.value)}
-                  placeholder="Initial Deposit"
+                  placeholder={t.saved}
                   className="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 text-slate-800 dark:text-slate-100 focus:outline-none"
                 />
               </div>
@@ -204,13 +206,13 @@ export default function SavingsGoalsView({
               onClick={() => setShowAddGoal(false)}
               className="text-xs px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800"
             >
-              Cancel
+              {t.cancel}
             </button>
             <button
               type="submit"
               className="text-xs px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-semibold"
             >
-              Establish Goal
+              {t.establishGoalBtn}
             </button>
           </div>
         </form>
@@ -224,7 +226,7 @@ export default function SavingsGoalsView({
         >
           <div className="flex justify-between items-center mb-3">
             <span className="text-xs font-bold text-emerald-800 dark:text-emerald-400">
-              Contribute Savings Funds
+              {t.contributeTitle}
             </span>
             <button 
               type="button" 
@@ -235,7 +237,7 @@ export default function SavingsGoalsView({
             </button>
           </div>
           <p className="text-[10px] text-slate-400 dark:text-slate-500 mb-3">
-            Transfer money directly from Chase Checking to Marcus Savings for this goal.
+            {t.contributeFunds}
           </p>
           <div className="relative">
             <DollarSign size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -243,7 +245,7 @@ export default function SavingsGoalsView({
               type="number"
               value={contributeAmount}
               onChange={(e) => setContributeAmount(e.target.value)}
-              placeholder="Contribution amount ($)"
+              placeholder={t.contributePlaceholder}
               className="w-full pl-9 pr-3 py-2 rounded-xl border border-emerald-300 dark:border-emerald-800 bg-white dark:bg-slate-900 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500"
               required
             />
@@ -252,7 +254,7 @@ export default function SavingsGoalsView({
             type="submit"
             className="w-full mt-3 py-2 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold text-xs rounded-xl shadow-md transition-colors"
           >
-            Confirm Contribution Transfer
+            {t.confirmContribution}
           </button>
         </form>
       )}
@@ -274,7 +276,7 @@ export default function SavingsGoalsView({
                       {g.name === "Emergency Fund" ? t.emergencyFund : g.name === "Vacation" ? t.vacation : g.name === "New Laptop" ? t.newLaptop : g.name}
                     </span>
                     <span className="text-[10px] text-slate-400 font-semibold block uppercase">
-                      Target Date: {g.targetDate}
+                      {t.targetDate} {g.targetDate}
                     </span>
                   </div>
                   <div className="p-2 bg-emerald-500/10 text-emerald-500 rounded-xl">
@@ -285,9 +287,9 @@ export default function SavingsGoalsView({
                 {/* Progress bar info */}
                 <div className="space-y-1.5">
                   <div className="flex items-baseline justify-between text-xs">
-                    <span className="text-slate-400 font-medium">Saved</span>
+                    <span className="text-slate-400 font-medium">{t.saved}</span>
                     <span className="font-extrabold text-slate-800 dark:text-slate-100">
-                      {formatCurrency(g.saved, "USD", language)} <span className="text-slate-400 font-medium">of {formatCurrency(g.target, "USD", language)}</span>
+                      {formatCurrency(g.saved, currency, language)} <span className="text-slate-400 font-medium">{t.ofAmount} {formatCurrency(g.target, currency, language)}</span>
                     </span>
                   </div>
                   
@@ -300,10 +302,10 @@ export default function SavingsGoalsView({
                   </div>
 
                   <div className="flex justify-between items-center text-[10px] font-bold text-slate-400">
-                    <span>{percent}% Complete</span>
+                    <span>{percent}{t.percentComplete}</span>
                     {percent >= 100 && (
                       <span className="text-emerald-500 flex items-center gap-0.5">
-                        <Sparkles size={10} /> Fully Funded!
+                        <Sparkles size={10} /> {t.fullyFunded}
                       </span>
                     )}
                   </div>
@@ -315,7 +317,7 @@ export default function SavingsGoalsView({
                 onClick={() => setContributeGoalId(g.id)}
                 className="w-full mt-4 py-2 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-850 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 flex items-center justify-center gap-1.5 transition-colors"
               >
-                <ArrowUpRight size={14} className="text-emerald-500" /> Contribute Funds
+                <ArrowUpRight size={14} className="text-emerald-500" /> {t.contributeFunds}
               </button>
             </div>
           );

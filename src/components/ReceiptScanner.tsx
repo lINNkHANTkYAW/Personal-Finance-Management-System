@@ -78,7 +78,7 @@ export default function ReceiptScanner({
       setCategory(result.category || "Shopping");
     } catch (err: any) {
       console.error(err);
-      setError("Failed to analyze receipt. Running offline simulation instead...");
+      setError(t.receiptError);
       
       // Local fallback simulation
       setTimeout(() => {
@@ -173,14 +173,14 @@ export default function ReceiptScanner({
             {t.scanReceipt}
           </h3>
           <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
-            Powered by server-side Gemini 3.5 OCR
+            {t.poweredByOcr}
           </p>
         </div>
         <button
           onClick={onClose}
           className="text-xs font-semibold text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-850"
         >
-          Close
+          {t.close}
         </button>
       </div>
 
@@ -238,7 +238,7 @@ export default function ReceiptScanner({
               className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-850 hover:text-slate-900 dark:hover:text-slate-100 transition-all duration-200"
             >
               <RefreshCw size={14} className="text-emerald-500 animate-spin-slow" />
-              Load Interactive Demo Receipt Scan
+              {t.loadDemoReceipt}
             </button>
           )}
         </div>
@@ -252,7 +252,7 @@ export default function ReceiptScanner({
                 {t.processing}
               </p>
               <p className="text-xs text-slate-400 mt-1">
-                Parsing items, tax values & totals...
+                {t.parsingReceipt}
               </p>
             </div>
           ) : scanResult ? (
@@ -335,12 +335,12 @@ export default function ReceiptScanner({
                       onChange={(e) => setCategory(e.target.value)}
                       className="w-full pl-9 pr-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 text-sm font-semibold text-slate-800 dark:text-slate-200 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 cursor-pointer"
                     >
-                      <option value="Food">Food / 食費</option>
-                      <option value="Shopping">Shopping / 買い物</option>
-                      <option value="Transportation">Transportation / 交通費</option>
-                      <option value="Entertainment">Entertainment / エンタメ</option>
-                      <option value="Utilities">Utilities / 光熱費</option>
-                      <option value="Healthcare">Healthcare / 医療費</option>
+                      <option value="Food">{t.food}</option>
+                      <option value="Shopping">{t.shopping}</option>
+                      <option value="Transportation">{t.transport}</option>
+                      <option value="Entertainment">{t.entertainment}</option>
+                      <option value="Utilities">{t.utilities}</option>
+                      <option value="Healthcare">{t.healthcare}</option>
                     </select>
                   </div>
                 </div>
@@ -354,7 +354,7 @@ export default function ReceiptScanner({
                   }}
                   className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-500 hover:bg-slate-50 hover:text-slate-700 transition-colors"
                 >
-                  Cancel
+                  {t.cancel}
                 </button>
                 <button
                   onClick={handleSaveTransaction}
@@ -369,10 +369,10 @@ export default function ReceiptScanner({
             <div className="flex-1 border border-slate-150 dark:border-slate-800/80 bg-slate-50/30 dark:bg-slate-950/10 rounded-2xl flex flex-col items-center justify-center p-6 text-center text-slate-400 min-h-[220px]">
               <FileText size={32} className="text-slate-300 dark:text-slate-700 mb-2" />
               <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                No receipt scanned yet
+                {t.noReceiptYet}
               </p>
               <p className="text-[10px] text-slate-400 mt-1 max-w-[160px]">
-                Drop a receipt image or select the interactive demo to view OCR extraction results.
+                {t.receiptDemoHint}
               </p>
             </div>
           )}

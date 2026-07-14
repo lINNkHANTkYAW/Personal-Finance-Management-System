@@ -15,12 +15,14 @@ import {
 interface InvestmentsViewProps {
   data: FinanceData;
   language: Language;
+  currency?: string;
   onUpdateData: (data: FinanceData) => void;
 }
 
 export default function InvestmentsView({
   data,
   language,
+  currency = "USD",
   onUpdateData
 }: InvestmentsViewProps) {
   const t = translations[language];
@@ -42,7 +44,7 @@ export default function InvestmentsView({
     const checking = data.accounts.find(a => a.type === "checking");
 
     if (tradeType === "buy" && checking && checking.balance < cost) {
-      alert("Insufficient funds in Chase Checking!");
+      alert(t.insufficientFunds);
       return;
     }
 
@@ -139,7 +141,7 @@ export default function InvestmentsView({
             {t.investments}
           </h3>
           <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
-            Brokerage portfolio tracking, asset allocation, and simulator trades
+            {t.investmentsSubtitle}
           </p>
         </div>
 
@@ -148,7 +150,7 @@ export default function InvestmentsView({
             onClick={handleSimulatePriceFlukes}
             className="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-850 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold px-3 py-1.5 rounded-xl border border-slate-200/60 dark:border-slate-800 transition-colors shadow-sm"
           >
-            <RefreshCw size={12} className="animate-spin-slow" /> Fluctuate Markets
+            <RefreshCw size={12} className="animate-spin-slow" /> {t.fluctuateMarkets}
           </button>
         </div>
       </div>
@@ -157,24 +159,24 @@ export default function InvestmentsView({
       <div className="bg-slate-900 text-white rounded-2xl p-6 border border-slate-850 shadow-md flex flex-col md:flex-row md:items-center md:justify-between gap-6">
         <div>
           <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">
-            Portfolio Net Valuation
+            {t.portfolioValuation}
           </span>
           <h4 className="font-sans font-extrabold text-3xl mt-1">
-            {formatCurrency(totalPortfolioValue, "USD", language)}
+            {formatCurrency(totalPortfolioValue, currency, language)}
           </h4>
           <p className="text-[11px] text-emerald-400 font-semibold mt-1.5 flex items-center gap-1">
-            <ArrowUpRight size={14} /> +12.4% overall returns (+${(totalPortfolioValue * 0.12).toFixed(2)})
+            <ArrowUpRight size={14} /> {t.overallReturns} (+{formatCurrency(totalPortfolioValue * 0.12, currency, language)})
           </p>
         </div>
         <div className="p-4 bg-slate-800 rounded-xl flex items-center gap-4 border border-slate-700/50">
           <div className="text-center px-2">
-            <span className="text-[10px] text-slate-400 block uppercase font-bold tracking-wider">Asset Class</span>
-            <span className="text-xs font-extrabold mt-0.5 block">Stocks & Crypto</span>
+            <span className="text-[10px] text-slate-400 block uppercase font-bold tracking-wider">{t.assetClass}</span>
+            <span className="text-xs font-extrabold mt-0.5 block">{t.stocksCrypto}</span>
           </div>
           <div className="w-px h-8 bg-slate-700" />
           <div className="text-center px-2">
-            <span className="text-[10px] text-slate-400 block uppercase font-bold tracking-wider">Security Level</span>
-            <span className="text-xs font-extrabold text-emerald-400 mt-0.5 block">High Stability</span>
+            <span className="text-[10px] text-slate-400 block uppercase font-bold tracking-wider">{t.securityLevel}</span>
+            <span className="text-xs font-extrabold text-emerald-400 mt-0.5 block">{t.highStability}</span>
           </div>
         </div>
       </div>
@@ -187,7 +189,7 @@ export default function InvestmentsView({
         >
           <div className="flex items-center justify-between">
             <h4 className="text-xs font-extrabold text-slate-800 dark:text-slate-100 uppercase tracking-wider flex items-center gap-1.5">
-              <Briefcase size={14} className="text-emerald-500" /> Trade Asset: {data.investments.find(i => i.id === selectedAssetId)?.symbol}
+              <Briefcase size={14} className="text-emerald-500" /> {t.tradeAsset} {data.investments.find(i => i.id === selectedAssetId)?.symbol}
             </h4>
             <button 
               type="button" 
@@ -201,20 +203,20 @@ export default function InvestmentsView({
           <div className="grid grid-cols-3 gap-3">
             <div className="col-span-1">
               <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 block uppercase tracking-wider mb-1">
-                Transaction Type
+                {t.transactionType}
               </label>
               <select
                 value={tradeType}
                 onChange={(e: any) => setTradeType(e.target.value)}
                 className="w-full text-xs px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 font-semibold"
               >
-                <option value="buy">BUY</option>
-                <option value="sell">SELL</option>
+                <option value="buy">{t.buy}</option>
+                <option value="sell">{t.sell}</option>
               </select>
             </div>
             <div className="col-span-2">
               <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 block uppercase tracking-wider mb-1">
-                Share Quantity
+                {t.shareQuantity}
               </label>
               <input
                 type="number"
@@ -232,7 +234,7 @@ export default function InvestmentsView({
             type="submit"
             className="w-full py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold text-xs rounded-xl shadow-md transition-colors"
           >
-            Execute {tradeType.toUpperCase()} Simulation Trade
+            {t.executeTrade}
           </button>
         </form>
       )}
@@ -285,9 +287,9 @@ export default function InvestmentsView({
 
                 <div className="mt-4 grid grid-cols-2 gap-2 border-t border-slate-100 dark:border-slate-800 pt-3 text-xs">
                   <div>
-                    <span className="text-[10px] text-slate-400 block font-medium uppercase">Price</span>
+                    <span className="text-[10px] text-slate-400 block font-medium uppercase">{t.price}</span>
                     <span className="font-extrabold text-slate-800 dark:text-slate-200">
-                      {formatCurrency(inv.currentPrice, "USD", language)}
+                      {formatCurrency(inv.currentPrice, currency, language)}
                     </span>
                   </div>
                   <div className="text-right">
@@ -305,13 +307,13 @@ export default function InvestmentsView({
                   <div>
                     <span className="text-[10px] text-slate-400 block font-medium uppercase">{t.value}</span>
                     <span className="font-extrabold text-slate-800 dark:text-slate-200">
-                      {formatCurrency(inv.totalValue, "USD", language)}
+                      {formatCurrency(inv.totalValue, currency, language)}
                     </span>
                   </div>
                   <div className="text-right">
                     <span className="text-[10px] text-slate-400 block font-medium uppercase">{t.profitLoss}</span>
                     <span className="font-extrabold text-emerald-500">
-                      +{formatCurrency(inv.totalProfitLoss, "USD", language)}
+                      +{formatCurrency(inv.totalProfitLoss, currency, language)}
                     </span>
                   </div>
                 </div>
@@ -321,7 +323,7 @@ export default function InvestmentsView({
                 onClick={() => setSelectedAssetId(inv.id)}
                 className="w-full mt-4 py-2 bg-slate-50 dark:bg-slate-850 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-300 border border-slate-200/60 dark:border-slate-800 rounded-xl transition-colors"
               >
-                Buy / Sell
+                {t.buySell}
               </button>
             </div>
           );

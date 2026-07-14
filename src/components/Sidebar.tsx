@@ -128,10 +128,10 @@ export default function Sidebar({
           </div>
         ) : (
           <div className="bg-slate-900 dark:bg-slate-950 rounded-xl p-3 text-white text-xs">
-            <p className="opacity-70 text-[10px] uppercase tracking-wider font-semibold">DB Connection</p>
+            <p className="opacity-70 text-[10px] uppercase tracking-wider font-semibold">{t.dbConnection}</p>
             <p className="font-mono mt-1 text-emerald-400 flex items-center gap-1.5 font-semibold">
               <span className={`w-1.5 h-1.5 rounded-full ${isDbConnected ? "bg-emerald-400 animate-pulse" : "bg-orange-400"}`} />
-              {isDbConnected ? "Docker Postgres" : "DB Offline"}
+              {isDbConnected ? t.dockerPostgres : t.dbOffline}
             </p>
           </div>
         )}

@@ -1,5 +1,7 @@
 import { useState, type FormEvent } from "react";
-import { Loader2, Lock, Mail, User, Wallet } from "lucide-react";
+import { Loader2, Lock, Mail, User, Wallet, Globe } from "lucide-react";
+import { translations } from "../lib/translations";
+import type { Language } from "../types";
 
 export interface SessionUser {
   id: string;
@@ -9,9 +11,16 @@ export interface SessionUser {
 
 interface AuthPageProps {
   onAuthenticated: (user: SessionUser) => void;
+  language: Language;
+  setLanguage: (lang: Language) => void;
 }
 
-export default function AuthPage({ onAuthenticated }: AuthPageProps) {
+export default function AuthPage({
+  onAuthenticated,
+  language,
+  setLanguage,
+}: AuthPageProps) {
+  const t = translations[language];
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -40,14 +49,14 @@ export default function AuthPage({ onAuthenticated }: AuthPageProps) {
 
       const result = await response.json();
       if (!response.ok) {
-        setError(result.error || "Authentication failed");
+        setError(result.error || t.authFailed);
         return;
       }
 
       onAuthenticated(result.user);
     } catch (err) {
       console.error(err);
-      setError("Unable to reach the server. Is it running?");
+      setError(t.serverUnreachable);
     } finally {
       setLoading(false);
     }
@@ -55,18 +64,41 @@ export default function AuthPage({ onAuthenticated }: AuthPageProps) {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-100 via-emerald-50 to-slate-200 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 px-4">
+      <div className="absolute top-4 right-4 flex items-center gap-1 bg-white/80 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-xl p-1 shadow-sm">
+        <Globe size={14} className="text-slate-400 ml-1.5" />
+        <button
+          type="button"
+          onClick={() => setLanguage("en")}
+          className={`px-2.5 py-1 text-xs font-bold rounded-lg ${
+            language === "en"
+              ? "bg-emerald-500 text-white"
+              : "text-slate-500 hover:text-slate-700"
+          }`}
+        >
+          EN
+        </button>
+        <button
+          type="button"
+          onClick={() => setLanguage("ja")}
+          className={`px-2.5 py-1 text-xs font-bold rounded-lg ${
+            language === "ja"
+              ? "bg-emerald-500 text-white"
+              : "text-slate-500 hover:text-slate-700"
+          }`}
+        >
+          日本語
+        </button>
+      </div>
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-emerald-500 text-white shadow-lg shadow-emerald-500/30 mb-4">
             <Wallet size={28} />
           </div>
           <h1 className="font-sans text-2xl font-extrabold text-slate-800 dark:text-slate-100 tracking-tight">
-            Elysian Wealth
+            {t.brandName}
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            {mode === "login"
-              ? "Sign in to your personal finance workspace"
-              : "Create an account to start tracking your money"}
+            {mode === "login" ? t.authLoginSubtitle : t.authSignupSubtitle}
           </p>
         </div>
 
@@ -84,7 +116,7 @@ export default function AuthPage({ onAuthenticated }: AuthPageProps) {
                   : "text-slate-500"
               }`}
             >
-              Log in
+              {t.login}
             </button>
             <button
               type="button"
@@ -98,7 +130,7 @@ export default function AuthPage({ onAuthenticated }: AuthPageProps) {
                   : "text-slate-500"
               }`}
             >
-              Sign up
+              {t.signup}
             </button>
           </div>
 
@@ -106,7 +138,7 @@ export default function AuthPage({ onAuthenticated }: AuthPageProps) {
             {mode === "signup" && (
               <label className="block">
                 <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-1.5 block">
-                  Full name
+                  {t.fullName}
                 </span>
                 <div className="relative">
                   <User
@@ -127,7 +159,7 @@ export default function AuthPage({ onAuthenticated }: AuthPageProps) {
 
             <label className="block">
               <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-1.5 block">
-                Email
+                {t.email}
               </span>
               <div className="relative">
                 <Mail
@@ -147,7 +179,7 @@ export default function AuthPage({ onAuthenticated }: AuthPageProps) {
 
             <label className="block">
               <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-1.5 block">
-                Password
+                {t.password}
               </span>
               <div className="relative">
                 <Lock
@@ -161,7 +193,7 @@ export default function AuthPage({ onAuthenticated }: AuthPageProps) {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
-                  placeholder={mode === "signup" ? "At least 6 characters" : "••••••••"}
+                  placeholder={mode === "signup" ? t.passwordHint : "••••••••"}
                 />
               </div>
             </label>
@@ -180,12 +212,12 @@ export default function AuthPage({ onAuthenticated }: AuthPageProps) {
               {loading ? (
                 <>
                   <Loader2 size={16} className="animate-spin" />
-                  Please wait...
+                  {t.pleaseWait}
                 </>
               ) : mode === "login" ? (
-                "Log in"
+                t.login
               ) : (
-                "Create account"
+                t.createAccount
               )}
             </button>
           </form>

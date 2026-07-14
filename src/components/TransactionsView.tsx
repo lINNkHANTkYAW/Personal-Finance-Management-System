@@ -19,12 +19,14 @@ import {
 interface TransactionsViewProps {
   data: FinanceData;
   language: Language;
+  currency?: string;
   onUpdateData: (data: FinanceData) => void;
 }
 
 export default function TransactionsView({
   data,
   language,
+  currency = "USD",
   onUpdateData
 }: TransactionsViewProps) {
   const t = translations[language];
@@ -93,7 +95,7 @@ export default function TransactionsView({
             {t.recentTransactions}
           </h3>
           <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
-            Audit and filter ledger of transactions and cash flows
+            {t.transactionsSubtitle}
           </p>
         </div>
 
@@ -101,7 +103,7 @@ export default function TransactionsView({
           onClick={() => setShowAddTx(!showAddTx)}
           className="flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold text-xs py-2 px-4 rounded-xl transition-all duration-250 shadow-md shadow-emerald-500/10"
         >
-          <Plus size={14} /> Add Transaction
+          <Plus size={14} /> {t.addTransaction}
         </button>
       </div>
 
@@ -112,7 +114,7 @@ export default function TransactionsView({
           className="p-5 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 rounded-2xl shadow-sm space-y-4"
         >
           <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-            Record New Ledger Entry
+            {t.recordLedgerEntry}
           </h4>
           
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -126,7 +128,7 @@ export default function TransactionsView({
                 type="text"
                 value={merchant}
                 onChange={(e) => setMerchant(e.target.value)}
-                placeholder="Merchant Name"
+                placeholder={t.merchantPlaceholder}
                 className="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 text-slate-800 dark:text-slate-100 focus:outline-none"
                 required
               />
@@ -203,13 +205,13 @@ export default function TransactionsView({
               onClick={() => setShowAddTx(false)}
               className="text-xs px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-50 text-slate-500 dark:text-slate-400 font-semibold"
             >
-              Cancel
+              {t.cancel}
             </button>
             <button
               type="submit"
               className="text-xs px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-semibold flex items-center gap-1 shadow-sm shadow-emerald-500/10"
             >
-              <Plus size={14} /> Add Transaction
+              <Plus size={14} /> {t.addTransaction}
             </button>
           </div>
         </form>
@@ -260,7 +262,7 @@ export default function TransactionsView({
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search merchants, categories..."
+              placeholder={t.searchMerchants}
               className="w-full pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 text-xs bg-slate-50/50 dark:bg-slate-950/20 focus:outline-none"
             />
           </div>
@@ -271,7 +273,7 @@ export default function TransactionsView({
               onChange={(e) => setCategoryFilter(e.target.value)}
               className="appearance-none text-xs bg-slate-100 dark:bg-slate-800 border border-slate-200/50 dark:border-slate-700/50 rounded-xl px-3 py-1.5 pr-8 font-semibold text-slate-600 dark:text-slate-400 cursor-pointer focus:outline-none"
             >
-              <option value="all">All Categories</option>
+              <option value="all">{t.allCategories}</option>
               {categories.map((c) => (
                 <option key={c} value={c.toLowerCase()}>
                   {translateCategory(c, language)}
@@ -302,7 +304,7 @@ export default function TransactionsView({
               {filteredTransactions.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="py-10 text-center text-slate-400">
-                    No transactions found matching active filters.
+                    {t.noMatchingTransactions}
                   </td>
                 </tr>
               ) : (
@@ -336,14 +338,14 @@ export default function TransactionsView({
                         {tx.status === "completed" && <CheckCircle2 size={10} />}
                         {tx.status === "pending" && <Clock size={10} />}
                         {tx.status === "failed" && <XCircle size={10} />}
-                        {tx.status}
+                        {tx.status === "completed" ? t.completed : tx.status === "pending" ? t.pending : t.failed}
                       </span>
                     </td>
                     <td className={`py-3.5 px-5 text-right font-extrabold font-mono ${
                       tx.type === "income" ? "text-emerald-500" : "text-slate-850 dark:text-slate-200"
                     }`}>
                       {tx.type === "income" ? "+" : "-"}
-                      {formatCurrency(tx.amount, "USD", language)}
+                      {formatCurrency(tx.amount, currency, language)}
                     </td>
                   </tr>
                 ))

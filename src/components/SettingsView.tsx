@@ -1,13 +1,10 @@
 import React, { useState } from "react";
 import { FinanceData, Language } from "../types";
-import { translations, formatCurrency } from "../lib/translations";
+import { translations } from "../lib/translations";
 import { 
   Settings, 
   User, 
   Bell, 
-  Lock, 
-  HelpCircle, 
-  ShieldCheck, 
   Trash2,
   CheckCircle2,
   LogOut
@@ -44,7 +41,7 @@ export default function SettingsView({
   };
 
   const handleResetApp = async () => {
-    if (!confirm("Are you sure you want to restore the local database to the initial default state? This will clear custom transactions and credentials.")) {
+    if (!confirm(t.resetConfirm)) {
       return;
     }
 
@@ -56,7 +53,7 @@ export default function SettingsView({
       if (response.ok) {
         const resetData = await response.json();
         onUpdateData(resetData);
-        alert("Local database reset to standard default values!");
+        alert(t.resetDone);
       }
     } catch (err) {
       console.error(err);
@@ -69,10 +66,10 @@ export default function SettingsView({
       <div>
         <h3 className="font-sans font-bold text-base text-slate-800 dark:text-slate-100 flex items-center gap-2">
           <Settings className="text-emerald-500" size={18} />
-          Profile & Application Settings
+          {t.settingsTitle}
         </h3>
         <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
-          Manage profile settings, custom integrations, alert preferences, and sandboxed storage states
+          {t.settingsSubtitle}
         </p>
       </div>
 
@@ -81,14 +78,14 @@ export default function SettingsView({
         {/* Profile Card left */}
         <div className="lg:col-span-7 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-6 shadow-sm">
           <h4 className="text-xs font-bold text-slate-850 dark:text-slate-200 uppercase tracking-wider mb-4 flex items-center gap-2">
-            <User size={14} className="text-emerald-500" /> Personal Account Identity
+            <User size={14} className="text-emerald-500" /> {t.personalIdentity}
           </h4>
 
           <form onSubmit={handleSaveProfile} className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 block uppercase tracking-wider mb-1">
-                  Full Name
+                  {t.fullName}
                 </label>
                 <input
                   type="text"
@@ -100,7 +97,7 @@ export default function SettingsView({
               </div>
               <div>
                 <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 block uppercase tracking-wider mb-1">
-                  Email Address
+                  {t.emailAddress}
                 </label>
                 <input
                   type="email"
@@ -114,7 +111,7 @@ export default function SettingsView({
 
             <div>
               <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 block uppercase tracking-wider mb-1">
-                Phone Number
+                {t.phoneNumber}
               </label>
               <input
                 type="text"
@@ -127,7 +124,7 @@ export default function SettingsView({
             <div className="flex justify-between items-center pt-2 border-t border-slate-100 dark:border-slate-800">
               {savedSuccess ? (
                 <span className="text-xs font-semibold text-emerald-500 flex items-center gap-1">
-                  <CheckCircle2 size={14} /> Profile details saved securely!
+                  <CheckCircle2 size={14} /> {t.profileSaved}
                 </span>
               ) : (
                 <span />
@@ -136,7 +133,7 @@ export default function SettingsView({
                 type="submit"
                 className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs py-2 px-4 rounded-xl shadow-md transition-colors"
               >
-                Save Identity Details
+                {t.saveIdentity}
               </button>
             </div>
           </form>
@@ -147,14 +144,14 @@ export default function SettingsView({
           
           <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-6 shadow-sm space-y-4">
             <h4 className="text-xs font-bold text-slate-850 dark:text-slate-200 uppercase tracking-wider flex items-center gap-2">
-              <Bell size={14} className="text-emerald-500" /> Notifications & Limits
+              <Bell size={14} className="text-emerald-500" /> {t.notifLimits}
             </h4>
 
             <div className="space-y-3.5 text-xs">
               <label className="flex items-center justify-between cursor-pointer">
                 <div>
-                  <span className="font-semibold text-slate-700 dark:text-slate-300 block">Push Smart Alerts</span>
-                  <span className="text-[10px] text-slate-400">Trigger warnings when budgets hit 80% limit</span>
+                  <span className="font-semibold text-slate-700 dark:text-slate-300 block">{t.enableAlerts}</span>
+                  <span className="text-[10px] text-slate-400">{t.enableAlertsDesc}</span>
                 </div>
                 <input 
                   type="checkbox" 
@@ -166,8 +163,8 @@ export default function SettingsView({
 
               <label className="flex items-center justify-between cursor-pointer">
                 <div>
-                  <span className="font-semibold text-slate-700 dark:text-slate-300 block">Automated Bill Pay</span>
-                  <span className="text-[10px] text-slate-400">Auto-draft high-priority utility invoices</span>
+                  <span className="font-semibold text-slate-700 dark:text-slate-300 block">{t.autoDeduction}</span>
+                  <span className="text-[10px] text-slate-400">{t.autoDeductionDesc}</span>
                 </div>
                 <input 
                   type="checkbox" 
@@ -179,8 +176,8 @@ export default function SettingsView({
 
               <label className="flex items-center justify-between cursor-pointer">
                 <div>
-                  <span className="font-semibold text-slate-700 dark:text-slate-300 block">Weekly Digests</span>
-                  <span className="text-[10px] text-slate-400">Email consolidated statements every Friday</span>
+                  <span className="font-semibold text-slate-700 dark:text-slate-300 block">{t.weeklyReports}</span>
+                  <span className="text-[10px] text-slate-400">{t.weeklyReportsDesc}</span>
                 </div>
                 <input 
                   type="checkbox" 
@@ -194,10 +191,10 @@ export default function SettingsView({
 
           <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-6 shadow-sm space-y-3">
             <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
-              <LogOut size={14} /> Account session
+              <LogOut size={14} /> {t.accountSession}
             </h4>
             <p className="text-xs text-slate-400 dark:text-slate-500 leading-relaxed">
-              Sign out of this device. Your finance data stays saved in the database for when you log back in.
+              {t.accountSessionDesc}
             </p>
             <button
               onClick={onLogout}
@@ -205,22 +202,22 @@ export default function SettingsView({
               className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:hover:bg-white text-white dark:text-slate-900 font-bold text-xs rounded-xl transition-colors flex items-center justify-center gap-2"
             >
               <LogOut size={14} />
-              Log out
+              {t.logout}
             </button>
           </div>
 
           <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-6 shadow-sm space-y-3">
             <h4 className="text-xs font-bold text-red-500 uppercase tracking-wider flex items-center gap-2">
-              <Trash2 size={14} /> Danger Zone
+              <Trash2 size={14} /> {t.dangerZone}
             </h4>
             <p className="text-xs text-slate-400 dark:text-slate-500 leading-relaxed">
-              Reset the local PostgreSQL database back to original defaults. All custom expenditures, newly established targets, and connection metadata will be permanently wiped.
+              {t.resetDesc}
             </p>
             <button
               onClick={handleResetApp}
               className="w-full py-2 bg-red-50 hover:bg-red-100 dark:bg-red-950/20 dark:hover:bg-red-950/30 text-red-600 dark:text-red-400 font-bold text-xs rounded-xl border border-red-200/50 dark:border-red-900/50 transition-colors"
             >
-              Reset Sandboxed Database
+              {t.resetDatabase}
             </button>
           </div>
 

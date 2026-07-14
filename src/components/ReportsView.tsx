@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { FinanceData, Language } from "../types";
-import { translations, formatCurrency, translateCategory } from "../lib/translations";
+import { translations, formatCurrency, translateCategory, fillTemplate } from "../lib/translations";
 import {
   FileText,
   Download,
@@ -84,10 +84,7 @@ export default function ReportsView({
       ...(investmentTotal > 0
         ? [
             {
-              label:
-                language === "ja"
-                  ? "投資ポートフォリオ評価額"
-                  : "Investment Portfolio Valuation",
+              label: t.investmentPortfolio,
               amount: investmentTotal,
             },
           ]
@@ -105,8 +102,7 @@ export default function ReportsView({
       .reduce((s, b) => s + b.amount, 0);
     if (unpaidBills > 0) {
       liabilityLines.push({
-        label:
-          language === "ja" ? "未払い請求（予定）" : "Upcoming Unpaid Bills",
+        label: t.unpaidBillsLiability,
         amount: unpaidBills,
       });
     }
@@ -127,7 +123,7 @@ export default function ReportsView({
       totalLiabilities,
       netPosition,
     };
-  }, [data, language, monthKey]);
+  }, [data, language, monthKey, t.investmentPortfolio, t.unpaidBillsLiability]);
 
   const money = (n: number) => formatCurrency(n, currency, language);
 
@@ -209,12 +205,10 @@ export default function ReportsView({
         <div>
           <h3 className="font-sans font-bold text-base text-slate-800 dark:text-slate-100 flex items-center gap-2">
             <FileText className="text-emerald-500" size={18} />
-            {t.reports || "Financial Reports"}
+            {t.reports}
           </h3>
           <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
-            {language === "ja"
-              ? `${monthLabel} の実データに基づくレポート`
-              : `Built from your live data for ${monthLabel}`}
+            {fillTemplate(t.reportsSubtitle, { period: monthLabel })}
           </p>
         </div>
 
@@ -224,14 +218,14 @@ export default function ReportsView({
           className="flex items-center gap-1.5 bg-slate-900 dark:bg-slate-100 hover:bg-slate-850 dark:hover:bg-white text-white dark:text-slate-900 font-semibold text-xs py-2 px-4 rounded-xl transition-all shadow-sm disabled:opacity-50"
         >
           {isExporting ? (
-            <>Exporting...</>
+            <>{t.exporting}</>
           ) : exportDone ? (
             <span className="flex items-center gap-1 text-emerald-500">
-              <CheckCircle size={14} /> Downloaded
+              <CheckCircle size={14} /> {t.downloaded}
             </span>
           ) : (
             <>
-              <Download size={14} /> Export Statement
+              <Download size={14} /> {t.exportStatement}
             </>
           )}
         </button>
@@ -248,9 +242,9 @@ export default function ReportsView({
             }`}
           >
             <div>
-              <span className="block font-bold">Income Statement</span>
+              <span className="block font-bold">{t.incomeStatement}</span>
               <span className="text-[10px] text-slate-400 font-normal">
-                Income vs expenses this month
+                {t.incomeStatementDesc}
               </span>
             </div>
             <ArrowUpRight size={14} className="text-emerald-500" />
@@ -265,9 +259,9 @@ export default function ReportsView({
             }`}
           >
             <div>
-              <span className="block font-bold">Balance Sheet</span>
+              <span className="block font-bold">{t.balanceSheet}</span>
               <span className="text-[10px] text-slate-400 font-normal">
-                Assets vs liabilities from your accounts
+                {t.balanceSheetDesc}
               </span>
             </div>
             <ArrowUpRight size={14} className="text-emerald-500" />
@@ -279,30 +273,28 @@ export default function ReportsView({
             <div className="flex justify-between items-start border-b border-dashed border-slate-200 dark:border-slate-800 pb-4">
               <div>
                 <h4 className="font-bold text-slate-800 dark:text-slate-100 text-xs uppercase">
-                  ELYSIAN WEALTH REPORTING
+                  {t.reportBrand}
                 </h4>
                 <p className="text-[10px] text-slate-400 mt-0.5">
-                  PERIOD: {monthLabel.toUpperCase()}
+                  {t.periodLabel}: {monthLabel.toUpperCase()}
                 </p>
               </div>
               <div className="text-right">
-                <p>RUN DATE: {new Date().toLocaleDateString()}</p>
-                <p>SOURCE: LIVE DATABASE</p>
+                <p>{t.runDate}: {new Date().toLocaleDateString()}</p>
+                <p>{t.sourceLive}</p>
               </div>
             </div>
 
             {reportType === "income_statement" ? (
               <div className="space-y-4">
                 <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block uppercase">
-                  1. Income
+                  {t.sectionIncome}
                 </span>
 
                 <div className="space-y-2">
                   {report.incomeLines.length === 0 ? (
                     <p className="text-slate-400">
-                      {language === "ja"
-                        ? "今月の収入データがありません。"
-                        : "No income recorded this month."}
+                      {t.noIncomeMonth}
                     </p>
                   ) : (
                     report.incomeLines.map((line) => (
@@ -315,20 +307,18 @@ export default function ReportsView({
                     ))
                   )}
                   <div className="flex justify-between font-bold text-slate-850 dark:text-slate-100 border-t border-dashed border-slate-200 dark:border-slate-800 pt-1.5">
-                    <span>TOTAL OPERATING INCOME</span>
+                    <span>{t.totalOperatingIncome}</span>
                     <span>{money(report.totalIncome)}</span>
                   </div>
                 </div>
 
                 <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block uppercase pt-3">
-                  2. Expenses
+                  {t.sectionExpenses}
                 </span>
                 <div className="space-y-2">
                   {report.expenseLines.length === 0 ? (
                     <p className="text-slate-400">
-                      {language === "ja"
-                        ? "今月の支出データがありません。"
-                        : "No expenses recorded this month."}
+                      {t.noExpensesMonth}
                     </p>
                   ) : (
                     report.expenseLines.map((line) => (
@@ -339,7 +329,7 @@ export default function ReportsView({
                     ))
                   )}
                   <div className="flex justify-between font-bold text-slate-850 dark:text-slate-100 border-t border-dashed border-slate-200 dark:border-slate-800 pt-1.5">
-                    <span>TOTAL EXPENSES</span>
+                    <span>{t.totalExpensesLabel}</span>
                     <span>{money(report.totalExpenses)}</span>
                   </div>
                 </div>
@@ -349,7 +339,7 @@ export default function ReportsView({
                     report.netSurplus >= 0 ? "text-emerald-500" : "text-red-500"
                   }`}
                 >
-                  <span>NET SURPLUS / DEFICIT</span>
+                  <span>{t.netSurplus}</span>
                   <span>
                     {report.netSurplus >= 0 ? "+" : ""}
                     {money(report.netSurplus)}
@@ -359,15 +349,13 @@ export default function ReportsView({
             ) : (
               <div className="space-y-4">
                 <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block uppercase">
-                  1. Assets
+                  {t.sectionAssets}
                 </span>
 
                 <div className="space-y-2">
                   {report.assetLines.length === 0 ? (
                     <p className="text-slate-400">
-                      {language === "ja"
-                        ? "資産口座がありません。"
-                        : "No asset accounts yet."}
+                      {t.noAssetAccounts}
                     </p>
                   ) : (
                     report.assetLines.map((line) => (
@@ -380,20 +368,18 @@ export default function ReportsView({
                     ))
                   )}
                   <div className="flex justify-between font-bold text-slate-850 dark:text-slate-100 border-t border-dashed border-slate-200 dark:border-slate-800 pt-1.5">
-                    <span>TOTAL ASSETS</span>
+                    <span>{t.totalAssetsLabel}</span>
                     <span>{money(report.totalAssets)}</span>
                   </div>
                 </div>
 
                 <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block uppercase pt-3">
-                  2. Liabilities
+                  {t.sectionLiabilities}
                 </span>
                 <div className="space-y-2">
                   {report.liabilityLines.length === 0 ? (
                     <p className="text-slate-400">
-                      {language === "ja"
-                        ? "負債はありません。"
-                        : "No liabilities recorded."}
+                      {t.noLiabilities}
                     </p>
                   ) : (
                     report.liabilityLines.map((line) => (
@@ -404,7 +390,7 @@ export default function ReportsView({
                     ))
                   )}
                   <div className="flex justify-between font-bold text-slate-850 dark:text-slate-100 border-t border-dashed border-slate-200 dark:border-slate-800 pt-1.5">
-                    <span>TOTAL LIABILITIES</span>
+                    <span>{t.totalLiabilitiesLabel}</span>
                     <span>{money(report.totalLiabilities)}</span>
                   </div>
                 </div>
@@ -414,7 +400,7 @@ export default function ReportsView({
                     report.netPosition >= 0 ? "text-emerald-500" : "text-red-500"
                   }`}
                 >
-                  <span>NET POSITION</span>
+                  <span>{t.netPosition}</span>
                   <span>
                     {report.netPosition >= 0 ? "+" : ""}
                     {money(report.netPosition)}
@@ -424,7 +410,7 @@ export default function ReportsView({
             )}
 
             <p className="text-[9px] text-center text-slate-400 dark:text-slate-500 border-t border-slate-150 dark:border-slate-800 pt-4">
-              Generated from your authenticated PostgreSQL data — not sample figures.
+              {t.reportFooter}
             </p>
           </div>
         </div>

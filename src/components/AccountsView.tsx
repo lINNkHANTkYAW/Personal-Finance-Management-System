@@ -117,13 +117,13 @@ export default function AccountsView({
         <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200/80 dark:border-slate-800/80 shadow-sm flex items-center justify-between">
           <div>
             <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500">
-              Total Assets
+              {t.totalAssets}
             </span>
             <h4 className="font-sans font-extrabold text-2xl text-slate-800 dark:text-slate-100 mt-1">
-              {formatCurrency(totalAssets, "USD", language)}
+              {formatCurrency(totalAssets, currency, language)}
             </h4>
             <p className="text-[10px] text-emerald-500 font-semibold mt-1 flex items-center gap-1">
-              <TrendingUp size={12} /> +1.4% change this week
+              <TrendingUp size={12} /> {t.liquidityOptimal}
             </p>
           </div>
           <div className="p-3 bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-xl">
@@ -134,13 +134,13 @@ export default function AccountsView({
         <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200/80 dark:border-slate-800/80 shadow-sm flex items-center justify-between">
           <div>
             <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500">
-              Total Liabilities
+              {t.totalLiabilities}
             </span>
             <h4 className="font-sans font-extrabold text-2xl text-slate-850 dark:text-slate-200 mt-1">
-              {formatCurrency(totalLiabilities, "USD", language)}
+              {formatCurrency(totalLiabilities, currency, language)}
             </h4>
             <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">
-              Credit card outstanding balances
+              {t.creditOutstanding}
             </p>
           </div>
           <div className="p-3 bg-red-500/10 dark:bg-red-500/20 text-red-600 dark:text-red-400 rounded-xl">
@@ -151,13 +151,13 @@ export default function AccountsView({
         <div className="bg-gradient-to-tr from-emerald-600 to-teal-500 rounded-2xl p-5 text-white shadow-lg shadow-emerald-500/10 flex items-center justify-between">
           <div>
             <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-100">
-              Calculated Net Worth
+              {t.netWorth}
             </span>
             <h4 className="font-sans font-extrabold text-2xl mt-1">
-              {formatCurrency(netWorth, "USD", language)}
+              {formatCurrency(netWorth, currency, language)}
             </h4>
             <p className="text-[10px] text-emerald-100 mt-1 flex items-center gap-1">
-              <Activity size={12} /> Financial Liquidity: Optimal
+              <Activity size={12} /> {t.liquidityOptimal}
             </p>
           </div>
           <div className="p-3 bg-white/10 rounded-xl text-white">
@@ -174,24 +174,24 @@ export default function AccountsView({
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="font-sans font-bold text-base text-slate-800 dark:text-slate-100">
-                Connected Institutions
+                {t.connectedInstitutions}
               </h3>
               <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
-                Manage bank accounts, checking accounts, and wallets
+                {t.manageBanks}
               </p>
             </div>
             <button
               onClick={() => setShowAddAccount(!showAddAccount)}
               className="flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold text-xs py-1.5 px-3 rounded-xl transition-colors shadow-sm shadow-emerald-500/10"
             >
-              <Plus size={14} /> Account
+              <Plus size={14} /> {t.account}
             </button>
           </div>
 
           {showAddAccount && (
             <div className="mb-5 p-4 border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 rounded-xl space-y-3">
               <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                Add New Institution Account
+                {t.addNewAccount}
               </h4>
               <div className="grid grid-cols-2 gap-3">
                 <div className="col-span-2">
@@ -199,7 +199,7 @@ export default function AccountsView({
                     type="text"
                     value={newAccName}
                     onChange={(e) => setNewAccName(e.target.value)}
-                    placeholder="Account Name (e.g. Chase Checkings)"
+                    placeholder={t.accountNamePlaceholder}
                     className="w-full text-xs px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 focus:outline-none focus:border-emerald-500"
                   />
                 </div>
@@ -209,10 +209,10 @@ export default function AccountsView({
                     onChange={(e: any) => setNewAccType(e.target.value)}
                     className="w-full text-xs px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 focus:outline-none focus:border-emerald-500"
                   >
-                    <option value="checking">Checking</option>
-                    <option value="savings">Savings</option>
-                    <option value="credit">Credit Card</option>
-                    <option value="investment">Investment</option>
+                    <option value="checking">{t.checking}</option>
+                    <option value="savings">{t.savings}</option>
+                    <option value="credit">{t.creditCard}</option>
+                    <option value="investment">{t.investmentAccount}</option>
                   </select>
                 </div>
                 <div>
@@ -220,7 +220,7 @@ export default function AccountsView({
                     type="number"
                     value={newAccBalance}
                     onChange={(e) => setNewAccBalance(e.target.value)}
-                    placeholder="Balance ($)"
+                    placeholder={t.balanceLabel}
                     className="w-full text-xs px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 focus:outline-none focus:border-emerald-500"
                   />
                 </div>
@@ -230,13 +230,13 @@ export default function AccountsView({
                   onClick={() => setShowAddAccount(false)}
                   className="text-xs px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-100"
                 >
-                  Cancel
+                  {t.cancel}
                 </button>
                 <button
                   onClick={handleAddAccount}
                   className="text-xs px-3 py-1.5 rounded-lg bg-emerald-500 text-white font-semibold hover:bg-emerald-600"
                 >
-                  Save
+                  {t.save}
                 </button>
               </div>
             </div>
@@ -262,16 +262,19 @@ export default function AccountsView({
                       {acc.name}
                     </span>
                     <span className="text-[10px] text-slate-400 dark:text-slate-500 uppercase font-semibold">
-                      {acc.type} • Synced 3 hours ago
+                      {acc.type === "checking" ? t.checking :
+                       acc.type === "savings" ? t.savings :
+                       acc.type === "credit" ? t.creditCard :
+                       t.investmentAccount} • {t.syncedRecently}
                     </span>
                   </div>
                 </div>
                 <div className="text-right shrink-0">
                   <span className="font-sans font-extrabold text-sm text-slate-800 dark:text-slate-100">
-                    {formatCurrency(acc.balance, "USD", language)}
+                    {formatCurrency(acc.balance, currency, language)}
                   </span>
                   <span className="text-[10px] text-slate-400 block font-medium">
-                    USD
+                    {currency}
                   </span>
                 </div>
               </div>
@@ -292,7 +295,7 @@ export default function AccountsView({
             </div>
             
             <p className="text-xs text-slate-400 dark:text-slate-500 leading-relaxed mb-4">
-              All finance data is stored in PostgreSQL running in Docker. Start the database with `docker compose up -d`, then verify the connection below.
+              {t.dbPanelHelp}
             </p>
 
             <div className="space-y-3.5">
@@ -331,7 +334,7 @@ export default function AccountsView({
                       {t.connected}
                     </span>
                     <span className="text-[10px] text-slate-400 dark:text-slate-500 block mt-0.5 leading-relaxed">
-                      All tables (accounts, transactions, bills, budgets) are synced to your Docker PostgreSQL schema.
+                      {t.dbHelpOnline}
                     </span>
                   </div>
                 </>
@@ -343,7 +346,7 @@ export default function AccountsView({
                       {t.disconnected}
                     </span>
                     <span className="text-[10px] text-slate-400 dark:text-slate-500 block mt-0.5 leading-relaxed">
-                      PostgreSQL is offline. Run `docker compose up -d` and confirm POSTGRES_* values in `.env.local`.
+                      {t.dbHelpOffline}
                     </span>
                   </div>
                 </>
@@ -352,12 +355,12 @@ export default function AccountsView({
 
             {testResult === "success" && (
               <div className="mt-3 p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200/50 dark:border-emerald-800/50 text-[11px] text-emerald-700 dark:text-emerald-400 font-semibold flex items-center gap-2">
-                <CheckCircle size={14} /> Database Connection Verified Successfully!
+                <CheckCircle size={14} /> {t.dbVerifyOk}
               </div>
             )}
             {testResult === "error" && (
               <div className="mt-3 p-2.5 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-200/50 dark:border-red-800/50 text-[11px] text-red-700 dark:text-red-400 font-semibold flex items-center gap-2">
-                <ServerCrash size={14} /> Connection Failed. Start Docker Postgres and try again.
+                <ServerCrash size={14} /> {t.dbVerifyFail}
               </div>
             )}
           </div>
@@ -368,7 +371,7 @@ export default function AccountsView({
             className="w-full mt-6 py-2.5 bg-slate-900 dark:bg-slate-100 hover:bg-slate-800 dark:hover:bg-white text-white dark:text-slate-900 text-xs font-semibold rounded-xl flex items-center justify-center gap-2 transition-colors disabled:opacity-50 shadow-md shadow-slate-900/10"
           >
             {isTesting ? (
-              <>Connecting...</>
+              <>{t.connecting}</>
             ) : (
               <>
                 <Database size={14} />

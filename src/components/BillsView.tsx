@@ -14,12 +14,14 @@ import {
 interface BillsViewProps {
   data: FinanceData;
   language: Language;
+  currency?: string;
   onUpdateData: (data: FinanceData) => void;
 }
 
 export default function BillsView({
   data,
   language,
+  currency = "USD",
   onUpdateData
 }: BillsViewProps) {
   const t = translations[language];
@@ -67,7 +69,7 @@ export default function BillsView({
     // Deduct amount from checking balance
     const checking = data.accounts.find(a => a.type === "checking");
     if (checking && checking.balance < bill.amount) {
-      alert("Insufficient funds in checking account to pay this bill!");
+      alert(t.insufficientBillFunds);
       return;
     }
 
@@ -129,7 +131,7 @@ export default function BillsView({
             {t.bills}
           </h3>
           <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
-            Monitor upcoming liabilities, utilities, subscriptions, and colored urgency deadlines
+            {t.billsSubtitle}
           </p>
         </div>
 
@@ -137,7 +139,7 @@ export default function BillsView({
           onClick={() => setShowAddBill(!showAddBill)}
           className="flex items-center gap-1.5 bg-slate-900 dark:bg-slate-100 hover:bg-slate-800 dark:hover:bg-white text-white dark:text-slate-900 font-semibold text-xs py-1.5 px-3 rounded-xl transition-colors shadow-sm"
         >
-          <Plus size={14} /> Add Bill
+          <Plus size={14} /> {t.addBill}
         </button>
       </div>
 
@@ -147,18 +149,18 @@ export default function BillsView({
           className="p-5 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 rounded-2xl shadow-sm space-y-4 max-w-md"
         >
           <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-            Register Upcoming Invoice
+            {t.registerInvoice}
           </h4>
           <div className="space-y-3">
             <div>
               <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 block uppercase tracking-wider mb-1">
-                Vendor Name / Bill Item
+                {t.billName}
               </label>
               <input
                 type="text"
                 value={billName}
                 onChange={(e) => setBillName(e.target.value)}
-                placeholder="e.g. PG&E Electricity, Verizon Wireless"
+                placeholder={t.billNamePlaceholder}
                 className="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 text-slate-800 dark:text-slate-100 focus:outline-none"
                 required
               />
@@ -166,7 +168,7 @@ export default function BillsView({
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 block uppercase tracking-wider mb-1">
-                  Amount Due ($)
+                  {t.amount}
                 </label>
                 <input
                   type="number"
@@ -179,7 +181,7 @@ export default function BillsView({
               </div>
               <div>
                 <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 block uppercase tracking-wider mb-1">
-                  Due Date
+                  {t.dueDate}
                 </label>
                 <input
                   type="date"
@@ -191,31 +193,31 @@ export default function BillsView({
               </div>
               <div>
                 <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 block uppercase tracking-wider mb-1">
-                  Category
+                  {t.category}
                 </label>
                 <select
                   value={billCategory}
                   onChange={(e) => setBillCategory(e.target.value)}
                   className="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 text-slate-800 dark:text-slate-100 focus:outline-none"
                 >
-                  <option value="Utilities">Utilities</option>
-                  <option value="Entertainment">Entertainment</option>
-                  <option value="Housing">Housing</option>
-                  <option value="Transportation">Transportation</option>
+                  <option value="Utilities">{t.utilities}</option>
+                  <option value="Entertainment">{t.entertainment}</option>
+                  <option value="Housing">{t.housing}</option>
+                  <option value="Transportation">{t.transport}</option>
                 </select>
               </div>
               <div>
                 <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 block uppercase tracking-wider mb-1">
-                  Urgency Level
+                  {t.urgency}
                 </label>
                 <select
                   value={billUrgency}
                   onChange={(e: any) => setBillUrgency(e.target.value)}
                   className="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 text-slate-800 dark:text-slate-100 focus:outline-none"
                 >
-                  <option value="low">Low</option>
-                  <option value="medium">Medium</option>
-                  <option value="high">High</option>
+                  <option value="low">{t.low}</option>
+                  <option value="medium">{t.medium}</option>
+                  <option value="high">{t.high}</option>
                 </select>
               </div>
             </div>
@@ -226,13 +228,13 @@ export default function BillsView({
               onClick={() => setShowAddBill(false)}
               className="text-xs px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800"
             >
-              Cancel
+              {t.cancel}
             </button>
             <button
               type="submit"
               className="text-xs px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-semibold"
             >
-              Add Upcoming Bill
+              {t.addUpcomingBill}
             </button>
           </div>
         </form>
@@ -244,12 +246,14 @@ export default function BillsView({
         {/* Main List */}
         <div className="lg:col-span-8 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 shadow-sm p-6 space-y-4">
           <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
-            Upcoming Accounts Receivable & Payable List
+            {t.billsListTitle}
           </h4>
           <div className="space-y-3">
             {data.bills.map((bill) => {
               const isPaid = bill.status === "paid";
               const isOverdue = bill.status === "overdue" || (new Date(bill.dueDate) < new Date() && !isPaid);
+              const urgencyText =
+                bill.urgency === "high" ? t.high : bill.urgency === "medium" ? t.medium : t.low;
 
               return (
                 <div 
@@ -277,7 +281,7 @@ export default function BillsView({
                         {bill.name}
                       </span>
                       <span className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold uppercase mt-0.5 block">
-                        Due: {bill.dueDate} • {bill.category}
+                        {t.duePrefix}: {bill.dueDate} • {bill.category}
                       </span>
                     </div>
                   </div>
@@ -285,7 +289,7 @@ export default function BillsView({
                   <div className="flex items-center gap-4 shrink-0">
                     <div className="text-right">
                       <span className={`font-sans font-extrabold text-sm block ${isPaid ? "text-slate-400" : "text-slate-800 dark:text-slate-100"}`}>
-                        {formatCurrency(bill.amount, "USD", language)}
+                        {formatCurrency(bill.amount, currency, language)}
                       </span>
                       <span className={`text-[10px] uppercase font-extrabold block ${
                         isPaid 
@@ -294,7 +298,7 @@ export default function BillsView({
                           ? "text-red-500" 
                           : "text-amber-500"
                       }`}>
-                        {isPaid ? "PAID" : bill.urgency} Urgency
+                        {isPaid ? t.paid : `${urgencyText} ${t.urgencyLabel}`}
                       </span>
                     </div>
 
@@ -317,26 +321,26 @@ export default function BillsView({
         <div className="lg:col-span-4 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 shadow-sm p-6 flex flex-col justify-between">
           <div className="space-y-4">
             <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 block uppercase tracking-wider">
-              Monthly Bill Liabilities Overview
+              {t.billsOverview}
             </h4>
             
             <div className="space-y-3 text-xs">
               <div className="flex justify-between items-center py-2 border-b border-slate-100 dark:border-slate-800">
-                <span className="text-slate-400">Total Upcoming Bills</span>
+                <span className="text-slate-400">{t.totalUpcomingBills}</span>
                 <span className="font-bold text-slate-700 dark:text-slate-300">
-                  {data.bills.filter(b=>b.status!=='paid').length} Bills
+                  {data.bills.filter(b=>b.status!=='paid').length} {t.billsCount}
                 </span>
               </div>
               <div className="flex justify-between items-center py-2 border-b border-slate-100 dark:border-slate-800">
-                <span className="text-slate-400">Total Unpaid Amount</span>
+                <span className="text-slate-400">{t.totalUnpaid}</span>
                 <span className="font-extrabold text-red-500">
-                  {formatCurrency(data.bills.filter(b=>b.status!=='paid').reduce((sum, b) => sum + b.amount, 0), "USD", language)}
+                  {formatCurrency(data.bills.filter(b=>b.status!=='paid').reduce((sum, b) => sum + b.amount, 0), currency, language)}
                 </span>
               </div>
               <div className="flex justify-between items-center py-2 border-b border-slate-100 dark:border-slate-800">
-                <span className="text-slate-400">Total Paid Bills</span>
+                <span className="text-slate-400">{t.totalPaidBills}</span>
                 <span className="font-extrabold text-emerald-500">
-                  {formatCurrency(data.bills.filter(b=>b.status==='paid').reduce((sum, b) => sum + b.amount, 0), "USD", language)}
+                  {formatCurrency(data.bills.filter(b=>b.status==='paid').reduce((sum, b) => sum + b.amount, 0), currency, language)}
                 </span>
               </div>
             </div>
@@ -345,7 +349,7 @@ export default function BillsView({
           <div className="mt-6 p-4 rounded-xl border border-slate-150 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed flex gap-2">
             <Info size={14} className="text-emerald-500 shrink-0 mt-0.5" />
             <p>
-              Auto-draft and manual payments are connected directly to Chase Checking. Paying a bill records a corresponding transaction automatically!
+              {t.billsInfo}
             </p>
           </div>
         </div>

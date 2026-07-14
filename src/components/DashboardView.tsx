@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { FinanceData, Transaction, Language, View } from "../types";
-import { translations, formatCurrency, translateCategory } from "../lib/translations";
+import { translations, formatCurrency, translateCategory, fillTemplate } from "../lib/translations";
 import { 
   LineChart, 
   Line, 
@@ -157,11 +157,7 @@ export default function DashboardView({
     .sort((a, b) => b.value - a.value);
 
   const healthScore = data.healthScore?.score ?? 0;
-  const healthLabelText =
-    data.healthScore?.label ||
-    (language === "ja"
-      ? "口座や取引を追加すると健全性が更新されます。"
-      : "Add accounts and transactions to build your financial health score.");
+  const healthLabelText = data.healthScore?.label || t.healthStartHint;
 
   const handleAddExpense = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -240,8 +236,8 @@ export default function DashboardView({
             </h3>
             <p className="text-[10px] text-slate-400 font-semibold mt-1">
               {data.accounts.length === 0
-                ? (language === "ja" ? "口座が未登録です" : "No accounts yet")
-                : `${data.accounts.length} ${language === "ja" ? "口座" : "accounts"}`}
+                ? t.noAccountsYet
+                : `${data.accounts.length} ${t.accountsCount}`}
             </p>
           </div>
           <div className="p-3 bg-emerald-500/10 text-emerald-500 dark:bg-emerald-500/20 rounded-xl">
@@ -259,7 +255,7 @@ export default function DashboardView({
               {formatCurrency(monthlyIncomeVal, currency, language)}
             </h3>
             <p className="text-[10px] text-slate-400 font-semibold mt-1">
-              {language === "ja" ? "今月の収入" : "This month"}
+              {t.thisMonth}
             </p>
           </div>
           <div className="p-3 bg-emerald-500/10 text-emerald-500 dark:bg-emerald-500/20 rounded-xl">
@@ -277,7 +273,7 @@ export default function DashboardView({
               {formatCurrency(monthlyExpensesVal, currency, language)}
             </h3>
             <p className="text-[10px] text-slate-400 font-semibold mt-1">
-              {language === "ja" ? "今月の支出" : "This month"}
+              {t.thisMonth}
             </p>
           </div>
           <div className="p-3 bg-red-500/10 text-red-500 dark:bg-red-500/20 rounded-xl">
@@ -295,9 +291,7 @@ export default function DashboardView({
               {savingsRateVal}%
             </h3>
             <p className="text-[10px] text-slate-400 font-semibold mt-1">
-              {monthlyIncomeVal > 0
-                ? (language === "ja" ? "収入に対する貯蓄割合" : "Of this month's income")
-                : (language === "ja" ? "収入データなし" : "No income recorded")}
+              {monthlyIncomeVal > 0 ? t.ofIncome : t.noIncomeRecorded}
             </p>
           </div>
           <div className="p-3 bg-blue-500/10 text-blue-500 dark:bg-blue-500/20 rounded-xl">
@@ -340,14 +334,14 @@ export default function DashboardView({
       {/* QUICK FORM POPUPS */}
       {showAddExpense && (
         <form onSubmit={handleAddExpense} className="p-5 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 rounded-2xl shadow-md max-w-sm">
-          <h4 className="text-xs font-bold mb-3 uppercase text-slate-700 dark:text-slate-300">Quick Expense Entry</h4>
+          <h4 className="text-xs font-bold mb-3 uppercase text-slate-700 dark:text-slate-300">{t.quickExpenseEntry}</h4>
           <div className="space-y-2.5">
             <input
-              type="text" required placeholder="Merchant" value={expenseMerchant} onChange={(e)=>setExpenseMerchant(e.target.value)}
+              type="text" required placeholder={t.merchantPlaceholder} value={expenseMerchant} onChange={(e)=>setExpenseMerchant(e.target.value)}
               className="w-full text-xs px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800"
             />
             <input
-              type="number" required placeholder="Amount ($)" value={expenseAmount} onChange={(e)=>setExpenseAmount(e.target.value)}
+              type="number" required placeholder={t.amountPlaceholder} value={expenseAmount} onChange={(e)=>setExpenseAmount(e.target.value)}
               className="w-full text-xs px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800"
             />
             <select
@@ -359,8 +353,8 @@ export default function DashboardView({
               <option value="Transportation">{t.transport}</option>
             </select>
             <div className="flex justify-end gap-2 text-xs pt-2">
-              <button type="button" onClick={()=>setShowAddExpense(false)} className="px-3 py-1.5 rounded-lg border">Cancel</button>
-              <button type="submit" className="px-3 py-1.5 bg-emerald-500 text-white rounded-lg font-semibold">Save</button>
+              <button type="button" onClick={()=>setShowAddExpense(false)} className="px-3 py-1.5 rounded-lg border">{t.cancel}</button>
+              <button type="submit" className="px-3 py-1.5 bg-emerald-500 text-white rounded-lg font-semibold">{t.save}</button>
             </div>
           </div>
         </form>
@@ -368,19 +362,19 @@ export default function DashboardView({
 
       {showAddIncome && (
         <form onSubmit={handleAddIncome} className="p-5 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 rounded-2xl shadow-md max-w-sm">
-          <h4 className="text-xs font-bold mb-3 uppercase text-slate-700 dark:text-slate-300">Quick Income Entry</h4>
+          <h4 className="text-xs font-bold mb-3 uppercase text-slate-700 dark:text-slate-300">{t.quickIncomeEntry}</h4>
           <div className="space-y-2.5">
             <input
-              type="text" required placeholder="Income Source" value={incomeMerchant} onChange={(e)=>setIncomeMerchant(e.target.value)}
+              type="text" required placeholder={t.incomeSource} value={incomeMerchant} onChange={(e)=>setIncomeMerchant(e.target.value)}
               className="w-full text-xs px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800"
             />
             <input
-              type="number" required placeholder="Amount ($)" value={incomeAmount} onChange={(e)=>setIncomeAmount(e.target.value)}
+              type="number" required placeholder={t.amountPlaceholder} value={incomeAmount} onChange={(e)=>setIncomeAmount(e.target.value)}
               className="w-full text-xs px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800"
             />
             <div className="flex justify-end gap-2 text-xs pt-2">
-              <button type="button" onClick={()=>setShowAddIncome(false)} className="px-3 py-1.5 rounded-lg border">Cancel</button>
-              <button type="submit" className="px-3 py-1.5 bg-emerald-500 text-white rounded-lg font-semibold">Save</button>
+              <button type="button" onClick={()=>setShowAddIncome(false)} className="px-3 py-1.5 rounded-lg border">{t.cancel}</button>
+              <button type="submit" className="px-3 py-1.5 bg-emerald-500 text-white rounded-lg font-semibold">{t.save}</button>
             </div>
           </div>
         </form>
@@ -434,14 +428,14 @@ export default function DashboardView({
           <div className="flex items-center justify-between mb-4">
             <div>
               <h4 className="font-sans font-bold text-sm text-slate-800 dark:text-slate-100">
-                12-Month Historical Assets Progression
+                {t.balanceHistoryTitle}
               </h4>
               <p className="text-[10px] text-slate-400 font-semibold uppercase">
-                Consolidated Balance trajectory
+                {t.balanceHistorySubtitle}
               </p>
             </div>
             <span className="text-xs font-bold text-emerald-500 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-0.5 rounded-lg">
-              Asset Climb
+              {t.assetClimb}
             </span>
           </div>
 
@@ -467,7 +461,7 @@ export default function DashboardView({
               {t.financialHealthScore}
             </h4>
             <p className="text-[10px] text-slate-400 font-semibold uppercase">
-              Consolidated vector standing
+              {t.healthStanding}
             </p>
           </div>
 
@@ -527,10 +521,10 @@ export default function DashboardView({
         <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-6 shadow-sm">
           <div>
             <h4 className="font-sans font-bold text-sm text-slate-800 dark:text-slate-100">
-              Monthly Income vs Expenses
+              {t.incomeVsExpenses}
             </h4>
             <p className="text-[10px] text-slate-400 font-semibold uppercase mb-4">
-              Cash flow comparison over past 6 months
+              {t.cashFlowComparison}
             </p>
           </div>
 
@@ -553,10 +547,10 @@ export default function DashboardView({
         <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-6 shadow-sm flex flex-col justify-between">
           <div>
             <h4 className="font-sans font-bold text-sm text-slate-800 dark:text-slate-100">
-              Spending by Category
+              {t.spendingByCategory}
             </h4>
             <p className="text-[10px] text-slate-400 font-semibold uppercase mb-4">
-              Categorical expense distributions this period
+              {t.spendingByCategorySubtitle}
             </p>
           </div>
 
@@ -583,7 +577,10 @@ export default function DashboardView({
             </div>
 
             <div className="col-span-6 space-y-1.5 overflow-y-auto max-h-[160px] pr-1 scrollbar-none">
-              {donutData.map((item, index) => (
+              {donutData.length === 0 ? (
+                <p className="text-xs text-slate-400">{t.noSpendingCategories}</p>
+              ) : (
+                donutData.map((item, index) => (
                 <div key={item.name} className="flex items-center justify-between text-[11px] font-semibold">
                   <div className="flex items-center gap-1.5 min-w-0">
                     <span className="w-2.5 h-2.5 rounded-md shrink-0" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
@@ -593,7 +590,8 @@ export default function DashboardView({
                     {formatCurrency(item.value, currency, language)}
                   </span>
                 </div>
-              ))}
+              ))
+              )}
             </div>
           </div>
         </div>
@@ -610,40 +608,37 @@ export default function DashboardView({
               <div className="flex items-center gap-2">
                 <Sparkles className="text-emerald-500" size={16} />
                 <h4 className="font-sans font-bold text-sm text-slate-800 dark:text-slate-100">
-                  {t.aiFinancialAdvisor} insights
+                  {t.aiFinancialAdvisor} {t.insightsSuffix}
                 </h4>
               </div>
               <button 
                 onClick={() => setCurrentView(View.AIInsights)}
                 className="text-xs text-emerald-500 hover:text-emerald-600 font-semibold flex items-center gap-0.5"
               >
-                Advisor Chat <ChevronRight size={14} />
+                {t.advisorChat} <ChevronRight size={14} />
               </button>
             </div>
 
             <div className="space-y-4 mt-4">
               {data.transactions.length === 0 ? (
                 <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                  {language === "ja"
-                    ? "取引データがありません。口座や取引を追加すると、ここにアドバイスが表示されます。"
-                    : "No activity yet. Add accounts and transactions to unlock personalized insights here."}
+                  {t.noActivityYet}
                 </p>
               ) : (
                 <>
                   <div className="flex gap-3 text-xs leading-relaxed">
                     <span className="p-1.5 bg-emerald-500/10 text-emerald-500 rounded-lg h-fit shrink-0 mt-0.5">💡</span>
                     <p className="text-slate-600 dark:text-slate-400 font-medium">
-                      {language === "ja"
-                        ? `今月の収入は ${formatCurrency(monthlyIncomeVal, currency, language)}、支出は ${formatCurrency(monthlyExpensesVal, currency, language)} です。`
-                        : `This month you earned ${formatCurrency(monthlyIncomeVal, currency, language)} and spent ${formatCurrency(monthlyExpensesVal, currency, language)}.`}
+                      {fillTemplate(t.earnedSpentInsight, {
+                        income: formatCurrency(monthlyIncomeVal, currency, language),
+                        expenses: formatCurrency(monthlyExpensesVal, currency, language),
+                      })}
                     </p>
                   </div>
                   <div className="flex gap-3 text-xs leading-relaxed">
                     <span className="p-1.5 bg-emerald-500/10 text-emerald-500 rounded-lg h-fit shrink-0 mt-0.5">📈</span>
                     <p className="text-slate-600 dark:text-slate-400 font-medium">
-                      {language === "ja"
-                        ? `貯蓄率は ${savingsRateVal}% です。詳細は AI Insights で確認できます。`
-                        : `Your savings rate is ${savingsRateVal}%. Open AI Insights for deeper analysis.`}
+                      {fillTemplate(t.savingsRateInsight, { rate: savingsRateVal })}
                     </p>
                   </div>
                 </>
@@ -657,20 +652,20 @@ export default function DashboardView({
           <div>
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
               <h4 className="font-sans font-bold text-sm text-slate-800 dark:text-slate-100">
-                Upcoming Bills
+                {t.upcomingBillsTitle}
               </h4>
               <button 
                 onClick={() => setCurrentView(View.Bills)}
                 className="text-xs text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 font-semibold"
               >
-                Calendar View <ChevronRight size={14} />
+                {t.calendarView} <ChevronRight size={14} />
               </button>
             </div>
 
             <div className="space-y-3 mt-4">
               {data.bills.length === 0 ? (
                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                  {language === "ja" ? "予定されている請求はありません。" : "No upcoming bills."}
+                  {t.noUpcomingBills}
                 </p>
               ) : (
                 data.bills.slice(0, 3).map((bill) => (
@@ -685,7 +680,7 @@ export default function DashboardView({
                     <span className="font-bold text-slate-800 dark:text-slate-100">
                       {formatCurrency(bill.amount, currency, language)}
                     </span>
-                    <span className="text-[9px] text-slate-400 block">Due {bill.dueDate}</span>
+                    <span className="text-[9px] text-slate-400 block">{t.duePrefix} {bill.dueDate}</span>
                   </div>
                 </div>
               ))
@@ -703,20 +698,20 @@ export default function DashboardView({
         <div className="lg:col-span-6 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-6 shadow-sm space-y-4">
           <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
             <h4 className="font-sans font-bold text-sm text-slate-800 dark:text-slate-100">
-              Active Category Budgets
+              {t.activeBudgets}
             </h4>
             <button 
               onClick={() => setCurrentView(View.Budgets)}
               className="text-xs text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 font-semibold"
             >
-              Set Limit <ChevronRight size={14} />
+              {t.setLimit} <ChevronRight size={14} />
             </button>
           </div>
 
           <div className="space-y-3.5">
             {data.budgets.length === 0 ? (
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                {language === "ja" ? "予算が未設定です。" : "No budgets set yet."}
+                {t.noBudgetsYet}
               </p>
             ) : (
               data.budgets.map((b) => {
@@ -726,7 +721,7 @@ export default function DashboardView({
                   <div className="flex justify-between items-baseline text-xs">
                     <span className="text-slate-500 font-semibold">{translateCategory(b.category, language)}</span>
                     <span className="font-extrabold text-slate-700 dark:text-slate-300">
-                      {formatCurrency(b.spent, currency, language)} <span className="text-slate-400 font-medium">of {formatCurrency(b.limit, currency, language)}</span>
+                      {formatCurrency(b.spent, currency, language)} <span className="text-slate-400 font-medium">{t.ofAmount} {formatCurrency(b.limit, currency, language)}</span>
                     </span>
                   </div>
                   <div className="w-full h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
@@ -746,20 +741,20 @@ export default function DashboardView({
         <div className="lg:col-span-6 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-6 shadow-sm space-y-4">
           <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
             <h4 className="font-sans font-bold text-sm text-slate-800 dark:text-slate-100">
-              Savings Targets Pacing
+              {t.savingsTargets}
             </h4>
             <button 
               onClick={() => setCurrentView(View.SavingsGoals)}
               className="text-xs text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 font-semibold"
             >
-              Fund Targets <ChevronRight size={14} />
+              {t.fundTargets} <ChevronRight size={14} />
             </button>
           </div>
 
           <div className="space-y-3.5">
             {data.savingsGoals.length === 0 ? (
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                {language === "ja" ? "貯蓄目標が未設定です。" : "No savings goals yet."}
+                {t.noSavingsGoalsYet}
               </p>
             ) : (
               data.savingsGoals.map((g) => {
@@ -769,7 +764,7 @@ export default function DashboardView({
                   <div className="flex justify-between items-baseline text-xs">
                     <span className="text-slate-500 font-semibold">{g.name}</span>
                     <span className="font-extrabold text-slate-700 dark:text-slate-300">
-                      {formatCurrency(g.saved, currency, language)} <span className="text-slate-400 font-medium">of {formatCurrency(g.target, currency, language)}</span>
+                      {formatCurrency(g.saved, currency, language)} <span className="text-slate-400 font-medium">{t.ofAmount} {formatCurrency(g.target, currency, language)}</span>
                     </span>
                   </div>
                   <div className="w-full h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
@@ -794,7 +789,7 @@ export default function DashboardView({
             onClick={() => setCurrentView(View.Transactions)}
             className="text-xs text-emerald-500 hover:text-emerald-600 font-semibold"
           >
-            Full Ledger View
+            {t.fullLedgerView}
           </button>
         </div>
 
@@ -813,7 +808,7 @@ export default function DashboardView({
               {data.transactions.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="py-8 text-center text-slate-500 dark:text-slate-400">
-                    {language === "ja" ? "取引がありません。" : "No transactions yet."}
+                    {t.noTransactionsYet}
                   </td>
                 </tr>
               ) : (
@@ -828,7 +823,7 @@ export default function DashboardView({
                   <td className="py-3 text-slate-400">{tx.paymentMethod}</td>
                   <td className="py-3">
                     <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full">
-                      <CheckCircle size={10} /> completed
+                      <CheckCircle size={10} /> {t.completed}
                     </span>
                   </td>
                   <td className="py-3 text-right font-extrabold font-mono text-slate-800 dark:text-slate-200">

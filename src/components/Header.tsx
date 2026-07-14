@@ -147,7 +147,7 @@ export default function Header({
                     onClick={handleMarkAllRead}
                     className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:text-emerald-500"
                   >
-                    Mark all read
+                    {t.markAllRead}
                   </button>
                 )}
               </div>
@@ -155,7 +155,7 @@ export default function Header({
               <div className="max-h-80 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800">
                 {notifications.length === 0 ? (
                   <div className="p-8 text-center text-slate-400 text-sm">
-                    No active notifications.
+                    {t.noNotifications}
                   </div>
                 ) : (
                   notifications.map((notif) => (
@@ -200,10 +200,10 @@ export default function Header({
         <div className="flex items-center gap-3 pl-2 border-l border-slate-200 dark:border-slate-800">
           <div className="flex flex-col text-right hidden sm:flex">
             <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
-              {user?.name || "Guest"}
+              {user?.name || t.guest}
             </span>
             <span className="text-[10px] text-slate-400 dark:text-slate-500">
-              {user?.email || "Not signed in"}
+              {user?.email || t.notSignedIn}
             </span>
           </div>
           <div className="w-8 h-8 rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-xs font-extrabold ring-2 ring-slate-100 dark:ring-slate-800 shrink-0">
@@ -216,7 +216,7 @@ export default function Header({
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-red-50 dark:hover:bg-red-500/10 text-slate-600 dark:text-slate-300 hover:text-red-600 dark:hover:text-red-400 text-xs font-bold transition-colors shadow-sm shrink-0"
             >
               <LogOut size={14} />
-              <span>Log out</span>
+              <span>{t.logout}</span>
             </button>
           )}
         </div>

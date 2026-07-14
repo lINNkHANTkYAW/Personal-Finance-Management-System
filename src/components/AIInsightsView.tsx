@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { FinanceData, AIRecommendation, Language } from "../types";
-import { translations, formatCurrency } from "../lib/translations";
+import { translations } from "../lib/translations";
 import { 
   Bot, 
   Send, 
@@ -10,7 +10,6 @@ import {
   Lightbulb, 
   Loader2,
   HelpCircle,
-  TrendingDown
 } from "lucide-react";
 
 interface AIInsightsViewProps {
@@ -33,9 +32,7 @@ export default function AIInsightsView({
   const [chatMessages, setChatMessages] = useState<any[]>([
     {
       sender: "bot",
-      text: language === "ja" 
-        ? "こんにちは！AI財務アドバイザーです。現在の口座残高、予算限度額、貯蓄目標などを元に、最適なファイナンシャルプランを提案します。何でも聞いてください！" 
-        : "Hello! I am your AI Financial Advisor. I have analyzed your balances, transactions, and goals. Ask me anything about your current budget or savings!",
+      text: t.advisorGreeting,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     }
   ]);
@@ -63,6 +60,13 @@ export default function AIInsightsView({
 
   useEffect(() => {
     fetchInsights();
+    setChatMessages([
+      {
+        sender: "bot",
+        text: translations[language].advisorGreeting,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      }
+    ]);
   }, [language]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
@@ -79,36 +83,26 @@ export default function AIInsightsView({
     setIsTyping(true);
 
     try {
-      // Prompt Gemini API via customized Express endpoint or do client-side context injection
-      // We will make a POST to /api/ai-insights with a custom query!
-      const prompt = `You are a professional financial advisor. User is asking a question: "${userText}".
-Here is their financial situation:
-- Accounts: Checking: $4,250.75, Savings: $8,200.00
-- Budgets: Food ($450/$600 used), Shopping ($320/$500 used), Transportation ($110/$250 used)
-- Savings Goals: Emergency Fund ($7,450/$10,000 saved), Vacation ($2,900/$5,000 saved)
-
-Answer the user's question clearly, concisely, and supportively. Keep it to 2-3 short, actionable sentences. Reply in ${language === "ja" ? "Japanese" : "English"}.`;
-
-      // Simulating or using real Gemini on the backend if configured
-      // For this, we can call /api/ai-insights or use a smart response
       setTimeout(() => {
-        let answer = "";
-        if (language === "ja") {
-          if (userText.includes("貯金") || userText.includes("貯蓄")) {
-            answer = "貯蓄額を増やすには、まず娯楽費や買い物予算を10%削減することを提案します。また、緊急用資金の積立額を毎月50ドル増やすことで、目標達成が2ヶ月早まります。";
-          } else if (userText.includes("レストラン") || userText.includes("外食")) {
-            answer = "今月はすでにレストランで450ドル中、多くの割合を消費しています。週に2回の外食を1回にするだけで、月間約150ドルの節約になり、旅行資金への積立に回せますよ。";
-          } else {
-            answer = "現在の総資産残高は良好です。貯蓄率は42%と極めて優秀ですので、このまま予算限度を守り、緊急用資金の目標額1万ドルを達成することに集中してください。";
-          }
-        } else {
-          if (userText.includes("save") || userText.includes("saving")) {
-            answer = "To boost savings, I recommend trimming your Shopping budget by 10% this month. Contributing an extra $50/month will help reach your Emergency Fund goal 2 weeks ahead of schedule.";
-          } else if (userText.includes("eat") || userText.includes("food")) {
-            answer = "You have used $450 of your $600 Food budget. Reducing dining out by just once a week can save you $120/month, which could be reallocated to your Vacation goal!";
-          } else {
-            answer = "Your financial profile is strong, with a solid 42% savings rate. I recommend staying disciplined on your shopping budgets and focusing on completing your Emergency Fund target.";
-          }
+        const lower = userText.toLowerCase();
+        let answer = t.aiAnswerGeneral;
+        if (
+          lower.includes("save") ||
+          lower.includes("saving") ||
+          userText.includes("貯金") ||
+          userText.includes("貯蓄")
+        ) {
+          answer = t.aiAnswerSavings;
+        } else if (
+          lower.includes("budget") ||
+          lower.includes("subscription") ||
+          lower.includes("eat") ||
+          lower.includes("food") ||
+          userText.includes("予算") ||
+          userText.includes("外食") ||
+          userText.includes("レストラン")
+        ) {
+          answer = t.aiAnswerBudget;
         }
 
         setChatMessages(prev => [...prev, {
@@ -125,9 +119,7 @@ Answer the user's question clearly, concisely, and supportively. Keep it to 2-3 
     }
   };
 
-  const sampleQuestions = language === "ja"
-    ? ["どうすれば貯蓄率を上げられますか？", "外食の支出を減らすためのアドバイスは？", "緊急資金の目標はいつ達成できますか？"]
-    : ["How can I improve my savings rate?", "What subscriptions can I reduce?", "When will I hit my emergency fund goal?"];
+  const sampleQuestions = [t.sampleQ1, t.sampleQ2, t.sampleQ3];
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-fade-in select-none">
@@ -137,17 +129,17 @@ Answer the user's question clearly, concisely, and supportively. Keep it to 2-3 
         <div>
           <h3 className="font-sans font-bold text-base text-slate-800 dark:text-slate-100 flex items-center gap-2">
             <Sparkles className="text-emerald-500" size={18} />
-            {t.aiFinancialAdvisor} Recommendations
+            {t.aiFinancialAdvisor} {t.recommendations}
           </h3>
           <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
-            Smart financial tips dynamically analyzed from your real-time expenses
+            {t.aiSubtitle}
           </p>
         </div>
 
         {isLoading ? (
           <div className="p-12 text-center bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800/80">
             <Loader2 className="text-emerald-500 animate-spin mx-auto mb-2" size={28} />
-            <span className="text-xs text-slate-400 font-semibold block">Calculating savings vectors...</span>
+            <span className="text-xs text-slate-400 font-semibold block">{t.calculatingVectors}</span>
           </div>
         ) : (
           <div className="space-y-4">
@@ -197,10 +189,10 @@ Answer the user's question clearly, concisely, and supportively. Keep it to 2-3 
           </div>
           <div>
             <span className="font-sans font-bold text-sm text-slate-800 dark:text-slate-200 block">
-              Elysian Advisor Copilot
+              {t.advisorCopilot}
             </span>
             <span className="text-[10px] text-emerald-500 font-semibold flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Active Copilot
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> {t.activeCopilot}
             </span>
           </div>
         </div>
@@ -265,7 +257,7 @@ Answer the user's question clearly, concisely, and supportively. Keep it to 2-3 
             type="text"
             value={chatInput}
             onChange={(e) => setChatInput(e.target.value)}
-            placeholder="Type your financial question..."
+            placeholder={t.askPlaceholder}
             className="flex-1 px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/25 text-xs focus:outline-none"
           />
           <button

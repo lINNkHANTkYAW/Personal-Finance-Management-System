@@ -14,12 +14,14 @@ import {
 interface BudgetsViewProps {
   data: FinanceData;
   language: Language;
+  currency?: string;
   onUpdateData: (data: FinanceData) => void;
 }
 
 export default function BudgetsView({
   data,
   language,
+  currency = "USD",
   onUpdateData
 }: BudgetsViewProps) {
   const t = translations[language];
@@ -61,7 +63,7 @@ export default function BudgetsView({
             {t.budgets}
           </h3>
           <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
-            Compare active limits against categorical expenses for the month
+            {t.budgetsSubtitle}
           </p>
         </div>
 
@@ -69,7 +71,7 @@ export default function BudgetsView({
           onClick={() => setShowAddBudget(!showAddBudget)}
           className="flex items-center gap-1.5 bg-slate-900 dark:bg-slate-100 hover:bg-slate-800 dark:hover:bg-white text-white dark:text-slate-900 font-semibold text-xs py-1.5 px-3 rounded-xl transition-colors shadow-sm"
         >
-          <Plus size={14} /> Set Limit
+          <Plus size={14} /> {t.setLimit}
         </button>
       </div>
 
@@ -79,12 +81,12 @@ export default function BudgetsView({
           className="p-5 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 rounded-2xl shadow-sm space-y-4 max-w-md"
         >
           <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-            Configure Budget Boundary
+            {t.configureBudget}
           </h4>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 block uppercase tracking-wider mb-1">
-                Category
+                {t.category}
               </label>
               <select
                 value={category}
@@ -101,13 +103,13 @@ export default function BudgetsView({
             </div>
             <div>
               <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 block uppercase tracking-wider mb-1">
-                Limit Amount ($)
+                {t.limitAmount}
               </label>
               <input
                 type="number"
                 value={limit}
                 onChange={(e) => setLimit(e.target.value)}
-                placeholder="Limit"
+                placeholder={t.limitAmount}
                 className="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 text-slate-800 dark:text-slate-100 focus:outline-none"
                 required
               />
@@ -119,13 +121,13 @@ export default function BudgetsView({
               onClick={() => setShowAddBudget(false)}
               className="text-xs px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800"
             >
-              Cancel
+              {t.cancel}
             </button>
             <button
               type="submit"
               className="text-xs px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-semibold"
             >
-              Update Budget
+              {t.updateBudget}
             </button>
           </div>
         </form>
@@ -146,10 +148,10 @@ export default function BudgetsView({
               <div className="flex items-center justify-between">
                 <div>
                   <span className="text-xs font-extrabold text-slate-800 dark:text-slate-200 block">
-                    {translateCategory(b.category, language)} Budget
+                    {translateCategory(b.category, language)} {t.budgetSuffix}
                   </span>
                   <span className="text-[10px] text-slate-400 font-semibold uppercase">
-                    Monthly Period
+                    {t.monthlyPeriod}
                   </span>
                 </div>
                 <div className={`p-2 rounded-xl ${
@@ -166,9 +168,9 @@ export default function BudgetsView({
               {/* Progress and numbers */}
               <div className="space-y-1.5">
                 <div className="flex items-baseline justify-between text-xs">
-                  <span className="text-slate-400 font-medium">Spent</span>
+                  <span className="text-slate-400 font-medium">{t.spent}</span>
                   <span className="font-extrabold text-slate-800 dark:text-slate-100">
-                    {formatCurrency(b.spent, "USD", language)} <span className="text-slate-400 font-medium">of {formatCurrency(b.limit, "USD", language)}</span>
+                    {formatCurrency(b.spent, currency, language)} <span className="text-slate-400 font-medium">{t.ofAmount} {formatCurrency(b.limit, currency, language)}</span>
                   </span>
                 </div>
 
@@ -190,18 +192,18 @@ export default function BudgetsView({
               {/* Additional Alerts info */}
               <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800 text-[10px] font-bold">
                 <span className="text-slate-400">
-                  {isOver ? "Over Budget" : `${100 - percent}% Remaining`}
+                  {isOver ? t.overBudget : `${100 - percent}${t.remainingPercent}`}
                 </span>
                 <span className={`flex items-center gap-1 ${
                   isOver ? "text-red-500" : percent >= 80 ? "text-amber-500" : "text-emerald-500"
                 }`}>
                   {isOver ? (
                     <>
-                      <AlertTriangle size={12} /> -{formatCurrency(b.spent - b.limit, "USD", language)}
+                      <AlertTriangle size={12} /> -{formatCurrency(b.spent - b.limit, currency, language)}
                     </>
                   ) : (
                     <>
-                      <CheckCircle2 size={12} /> {formatCurrency(remaining, "USD", language)} left
+                      <CheckCircle2 size={12} /> {formatCurrency(remaining, currency, language)} {t.left}
                     </>
                   )}
                 </span>
@@ -215,7 +217,7 @@ export default function BudgetsView({
       <div className="p-4 rounded-xl border border-slate-150 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/20 flex gap-3 text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
         <Info size={16} className="text-emerald-500 shrink-0 mt-0.5" />
         <p>
-          Each budget is fully interactive! Whenever you record a new Transaction matching one of these categories (e.g. food, shopping), the spent values recalculate automatically on the server, updating progress tracks in real time.
+          {t.budgetsInfo}
         </p>
       </div>
 
